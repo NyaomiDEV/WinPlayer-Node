@@ -1,0 +1,15 @@
+{
+  "name": "winplayer-node",
+  "version": "1.0.0",
+  "description": "WinPlayer for Node.js",
+  "main": "index.js",
+  "license": "MPL-2.0",
+  "private": true,
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "^4.2.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^8.4.0"
+  }
+}
