@@ -1,0 +1,13 @@
+{
+    "version": "2.0.0",
+    "configurations": [{
+       "type": "lldb",
+       "request": "launch",
+       "name": "Launch Program",
+       "preLaunchTask": "npm: build:dev",
+       "program": "C:\\Program Files\\nodejs\\node.exe",
+       "args": [
+          "C:\\Users\\Naomi Calabretta\\Desktop\\WinPlayer-Node\\test.js"
+       ]
+    }]
+  }

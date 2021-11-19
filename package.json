@@ -5,6 +5,14 @@
   "main": "index.js",
   "license": "MPL-2.0",
   "private": true,
+  "scripts": {
+    "start": "node test.js",
+    "build:dev": "node-gyp build --debug",
+    "build": "node-gyp build",
+    "rebuild:dev": "node-gyp rebuild --debug",
+    "rebuild": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+ },
   "dependencies": {
     "bindings": "^1.5.0",
     "node-addon-api": "^4.2.0"

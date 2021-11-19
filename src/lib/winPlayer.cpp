@@ -2,7 +2,11 @@
 
 // private
 void Player::updatePlayers(){
+	this->activePlayer.reset();
 	this->players.clear();
+	this->playbackInfoChangedHandlers.clear();
+	this->mediaPropertiesChangedHandlers.clear();
+	this->timelinePropertiesChangedHandlers.clear();
 	auto sessions = this->sessionManager->GetSessions();
 	for(uint32_t i = 0; i < sessions.Size(); i++){
 		const auto player = sessions.GetAt(i);
@@ -83,37 +87,42 @@ void Player::calculateActivePlayer(std::optional<std::wstring> const preferred){
 	if(this->callback.has_value()) (this->callback.value())();
 }
 
-Metadata Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
+std::optional<Metadata> Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
 	auto timelineProperties = player.GetTimelineProperties();
-	auto info = player.TryGetMediaPropertiesAsync().get();
-	Metadata metadata;
+	try{
+		auto info = player.TryGetMediaPropertiesAsync().get();
+		Metadata metadata;
 
-	metadata.title = info.Title().c_str();
-	metadata.album = info.AlbumTitle().c_str();
-	metadata.artist = info.Artist().c_str();
-	metadata.albumArtist = info.AlbumArtist().c_str();
-	metadata.artists = {info.Artist().c_str()};
-	metadata.albumArtists = {info.AlbumArtist().c_str()};
-	metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
-	metadata.id = metadata.albumArtist + L":" + metadata.artist + L":" + metadata.album + L":" + metadata.title + L":" + std::to_wstring(metadata.length);
+		metadata.title = info.Title().c_str();
+		metadata.album = info.AlbumTitle().c_str();
+		metadata.artist = info.Artist().c_str();
+		metadata.albumArtist = info.AlbumArtist().c_str();
+		metadata.artists = {info.Artist().c_str()};
+		metadata.albumArtists = {info.AlbumArtist().c_str()};
+		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
+		metadata.id = metadata.albumArtist + L":" + metadata.artist + L":" + metadata.album + L":" + metadata.title + L":" + std::to_wstring(metadata.length);
 
-	auto thumbnail = info.Thumbnail();
-    if(thumbnail) {
-        auto stream = thumbnail.OpenReadAsync().get();
-        if(stream && stream.CanRead()) {
-            winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(stream.Size());
-            data = stream.ReadAsync(data, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
-			metadata.artData.data = data.data();
-			metadata.artData.size = data.Capacity();
-			metadata.artData.type = stream.ContentType();
-        }
-    }else{
-		metadata.artData.data = 0;
-		metadata.artData.size = 0;
-		metadata.artData.type = L"NULL";
+		auto thumbnail = info.Thumbnail();
+		if(thumbnail) {
+			auto stream = thumbnail.OpenReadAsync().get();
+			if(stream && stream.CanRead()) {
+				winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(stream.Size());
+				data = stream.ReadAsync(data, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
+				metadata.artData.data = data.data();
+				metadata.artData.size = data.Capacity();
+				metadata.artData.type = stream.ContentType();
+			}
+		}else{
+			metadata.artData.data = 0;
+			metadata.artData.size = 0;
+			metadata.artData.type = L"NULL";
+		}
+
+		return metadata;
+	}catch(winrt::hresult_error e){
+		// oof
+		return {};
 	}
-
-	return metadata;
 }
 
 Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSession const& player){

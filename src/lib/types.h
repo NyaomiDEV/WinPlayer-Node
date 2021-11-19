@@ -32,7 +32,7 @@ struct Capabilities {
 };
 
 struct Update {
-	Metadata metadata;
+	std::optional<Metadata> metadata;
 	Capabilities capabilities;
 	std::wstring status;
 	std::wstring loop;

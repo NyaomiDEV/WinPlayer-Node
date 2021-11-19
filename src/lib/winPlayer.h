@@ -37,7 +37,7 @@ class Player {
 		void removePlayer(std::wstring const AUMID);
 		void registerPlayerEvents(std::wstring const AUMID, GlobalSystemMediaTransportControlsSession const& player);
 		void calculateActivePlayer(std::optional<std::wstring> const preferred);
-		Metadata getMetadata(GlobalSystemMediaTransportControlsSession const& player);
+		std::optional<Metadata> getMetadata(GlobalSystemMediaTransportControlsSession const& player);
 		Capabilities getCapabilities(GlobalSystemMediaTransportControlsSession const& player);
 	public:
 		Player();

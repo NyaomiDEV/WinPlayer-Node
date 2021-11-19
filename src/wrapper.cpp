@@ -69,26 +69,28 @@ Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 
 		// Metadata
 		Napi::Object jsMetadata = Napi::Object::New(env);
-		jsMetadata.Set("id", Napi::String::New(env, std::u16string(update->metadata.id.begin(), update->metadata.id.end())));
-		jsMetadata.Set("title", Napi::String::New(env, std::u16string(update->metadata.title.begin(), update->metadata.title.end())));
-		jsMetadata.Set("artist", Napi::String::New(env, std::u16string(update->metadata.artist.begin(), update->metadata.artist.end())));
-		jsMetadata.Set("album", Napi::String::New(env, std::u16string(update->metadata.album.begin(), update->metadata.album.end())));
-		jsMetadata.Set("albumArtist", Napi::String::New(env, std::u16string(update->metadata.albumArtist.begin(), update->metadata.albumArtist.end())));
-		jsMetadata.Set("length", Napi::Number::New(env, update->metadata.length));
+		if(update->metadata.has_value()){
+			jsMetadata.Set("id", Napi::String::New(env, std::u16string(update->metadata->id.begin(), update->metadata->id.end())));
+			jsMetadata.Set("title", Napi::String::New(env, std::u16string(update->metadata->title.begin(), update->metadata->title.end())));
+			jsMetadata.Set("artist", Napi::String::New(env, std::u16string(update->metadata->artist.begin(), update->metadata->artist.end())));
+			jsMetadata.Set("album", Napi::String::New(env, std::u16string(update->metadata->album.begin(), update->metadata->album.end())));
+			jsMetadata.Set("albumArtist", Napi::String::New(env, std::u16string(update->metadata->albumArtist.begin(), update->metadata->albumArtist.end())));
+			jsMetadata.Set("length", Napi::Number::New(env, update->metadata->length));
 
-		Napi::Array jsArtists = Napi::Array::New(env, update->metadata.artists.size()), jsAlbumArtists = Napi::Array::New(env, update->metadata.albumArtists.size());
-		for(int i = 0; i < update->metadata.artists.size(); i++)
-			jsArtists.Set(i, Napi::String::New(env, std::u16string(update->metadata.artists[i].begin(), update->metadata.artists[i].end())));
-		for(int i = 0; i < update->metadata.albumArtists.size(); i++)
-			jsAlbumArtists.Set(i, Napi::String::New(env, std::u16string(update->metadata.albumArtists[i].begin(), update->metadata.albumArtists[i].end())));
-		jsMetadata.Set("artists", jsArtists);
-		jsMetadata.Set("albumArtists", jsAlbumArtists);
+			Napi::Array jsArtists = Napi::Array::New(env, update->metadata->artists.size()), jsAlbumArtists = Napi::Array::New(env, update->metadata->albumArtists.size());
+			for(int i = 0; i < update->metadata->artists.size(); i++)
+				jsArtists.Set(i, Napi::String::New(env, std::u16string(update->metadata->artists[i].begin(), update->metadata->artists[i].end())));
+			for(int i = 0; i < update->metadata->albumArtists.size(); i++)
+				jsAlbumArtists.Set(i, Napi::String::New(env, std::u16string(update->metadata->albumArtists[i].begin(), update->metadata->albumArtists[i].end())));
+			jsMetadata.Set("artists", jsArtists);
+			jsMetadata.Set("albumArtists", jsAlbumArtists);
 
-		Napi::Object jsArtData = Napi::Object::New(env);
-		jsArtData.Set("size", Napi::Number::New(env, update->metadata.artData.size));
-		jsArtData.Set("type", Napi::String::New(env, std::u16string(update->metadata.artData.type.begin(), update->metadata.artData.type.end())));
-		jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata.artData.data, update->metadata.artData.size));
-		jsMetadata.Set("artData", jsArtData);
+			Napi::Object jsArtData = Napi::Object::New(env);
+			jsArtData.Set("size", Napi::Number::New(env, update->metadata->artData.size));
+			jsArtData.Set("type", Napi::String::New(env, std::u16string(update->metadata->artData.type.begin(), update->metadata->artData.type.end())));
+			jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata->artData.data, update->metadata->artData.size));
+			jsMetadata.Set("artData", jsArtData);
+		}
 
 		jsUpdate.Set("metadata", jsMetadata);
 		return jsUpdate;
