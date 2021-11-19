@@ -23,6 +23,7 @@ class WrappedPlayer : public Napi::ObjectWrap<WrappedPlayer> {
 		Napi::Value SeekPercentage(const Napi::CallbackInfo& info);
 		Napi::Value GetPosition(const Napi::CallbackInfo& info);
 		Napi::Value SetPosition(const Napi::CallbackInfo& info);
+		Napi::Value GetVolume(const Napi::CallbackInfo& info);
 		Napi::Value SetVolume(const Napi::CallbackInfo& info);
 };
 

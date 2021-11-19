@@ -291,7 +291,7 @@ void Player::SeekPercentage(float const percentage){
 
 	auto player = this->players[this->activePlayer.value()];
 	float length = std::chrono::duration_cast<std::chrono::milliseconds>(player->GetTimelineProperties().EndTime() - player->GetTimelineProperties().StartTime()).count() / 1000.0;
-	this->SetPosition(length / 100.0 * percentage);
+	this->SetPosition(length * percentage);
 }
 
 void Player::SetPosition(float const positionS){
@@ -310,6 +310,11 @@ float Player::GetPosition(){
 	auto player = this->players[this->activePlayer.value()];
 	auto timelineProperties = player->GetTimelineProperties();
 	return std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.Position() - timelineProperties.StartTime()).count() / 1000.0;
+}
+
+float Player::GetVolume(){
+	// not supported :C
+	return -1;
 }
 
 void Player::SetVolume(float const volume){

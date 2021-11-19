@@ -55,6 +55,7 @@ class Player {
 		void SeekPercentage(float const percentage);
 		float GetPosition();
 		void SetPosition(float const positionS);
+		float GetVolume();
 		void SetVolume(float const volume);
 };
 

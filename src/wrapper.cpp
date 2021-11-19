@@ -14,6 +14,7 @@ Napi::Object WrappedPlayer::Init(Napi::Env env, Napi::Object exports){
 		InstanceMethod("SeekPercentage", &WrappedPlayer::SeekPercentage),
 		InstanceMethod("GetPosition", &WrappedPlayer::GetPosition),
 		InstanceMethod("SetPosition", &WrappedPlayer::SetPosition),
+		InstanceMethod("GetVolume", &WrappedPlayer::GetVolume),
 		InstanceMethod("SetVolume", &WrappedPlayer::SetVolume),
 	});
 
@@ -106,7 +107,7 @@ Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 		return jsUpdate;
 	}
 
-	return env.Undefined();
+	return env.Null();
 }
 
 Napi::Value WrappedPlayer::Play(const Napi::CallbackInfo& info){
@@ -170,6 +171,11 @@ Napi::Value WrappedPlayer::SetPosition(const Napi::CallbackInfo& info){
 	float position = info[0].As<Napi::Number>().FloatValue();
 	this->_player.SetPosition(position);
 	return info.Env().Undefined();
+}
+
+Napi::Value WrappedPlayer::GetVolume(const Napi::CallbackInfo& info){
+	float volume = this->_player.GetVolume();
+	return Napi::Number::New(info.Env(), volume);
 }
 
 Napi::Value WrappedPlayer::SetVolume(const Napi::CallbackInfo& info){
