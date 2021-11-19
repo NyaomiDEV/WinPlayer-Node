@@ -11,7 +11,8 @@
     "build": "node-gyp build",
     "rebuild:dev": "node-gyp rebuild --debug",
     "rebuild": "node-gyp rebuild",
-    "clean": "node-gyp clean"
+    "clean": "node-gyp clean",
+    "install": "node-gyp rebuild"
  },
   "dependencies": {
     "bindings": "^1.5.0",
