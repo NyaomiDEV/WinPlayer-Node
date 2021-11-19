@@ -1,9 +1,19 @@
 # WinPlayer-Node
 
-## Current obstacles
+## Usage
 
-- I cannot get events from WinRT! Probably I am doing something wrong. Surely I am.
-- Everything is pretty much left to be implemented
+```js
+	import Player from "winplayer-node";
+
+	let player;
+
+	function onUpdate(){
+		const update = player.getUpdate();
+		console.log(update);
+	}
+
+	player = new Player(onUpdate);
+```
 
 ## The aim
 

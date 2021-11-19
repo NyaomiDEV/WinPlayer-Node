@@ -6,7 +6,7 @@
 #include <vector>
 
 struct ArtData {
-	char* data;
+	uint8_t* data;
 	int size;
 	std::wstring type;
 };
@@ -19,7 +19,7 @@ struct Metadata {
 	std::wstring album;
 	std::wstring albumArtist;
 	std::vector<std::wstring> albumArtists;
-	std::optional<ArtData> artData;
+	ArtData artData;
 	float length;
 };
 

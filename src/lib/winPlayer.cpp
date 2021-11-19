@@ -103,13 +103,15 @@ Metadata Player::getMetadata(GlobalSystemMediaTransportControlsSession const& pl
         if(stream && stream.CanRead()) {
             winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(stream.Size());
             data = stream.ReadAsync(data, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
-			ArtData artData;
-			artData.data = (char*)data.data();
-			artData.size = data.Capacity();
-			artData.type = stream.ContentType();
-			metadata.artData = artData;
+			metadata.artData.data = data.data();
+			metadata.artData.size = data.Capacity();
+			metadata.artData.type = stream.ContentType();
         }
-    }
+    }else{
+		metadata.artData.data = 0;
+		metadata.artData.size = 0;
+		metadata.artData.type = L"NULL";
+	}
 
 	return metadata;
 }
