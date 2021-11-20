@@ -102,20 +102,19 @@ std::optional<Metadata> Player::getMetadata(GlobalSystemMediaTransportControlsSe
 		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
 		metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
 
+		metadata.artData.data = nullptr;
+		metadata.artData.size = 0;
+		metadata.artData.type = "NULL";
 		auto thumbnail = info.Thumbnail();
-		if(thumbnail) {
-			auto stream = thumbnail.OpenReadAsync().get();
-			if(stream && stream.CanRead()) {
-				winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(stream.Size());
-				data = stream.ReadAsync(data, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
+		if (thumbnail){
+			auto asyncStream = thumbnail.OpenReadAsync();
+			if (asyncStream.wait_for(std::chrono::seconds(1)) == winrt::Windows::Foundation::AsyncStatus::Completed && asyncStream.GetResults().CanRead()){
+				winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(asyncStream.GetResults().Size());
+				data = asyncStream.GetResults().ReadAsync(data, asyncStream.GetResults().Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
 				metadata.artData.data = data.data();
 				metadata.artData.size = data.Capacity();
-				metadata.artData.type = winrt::to_string(stream.ContentType());
+				metadata.artData.type = winrt::to_string(asyncStream.GetResults().ContentType());
 			}
-		}else{
-			metadata.artData.data = nullptr;
-			metadata.artData.size = 0;
-			metadata.artData.type = "NULL";
 		}
 
 		return metadata;

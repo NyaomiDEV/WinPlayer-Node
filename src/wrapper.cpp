@@ -5,6 +5,7 @@ Napi::Object WrappedPlayer::Init(Napi::Env env, Napi::Object exports){
 		InstanceMethod("getUpdate", &WrappedPlayer::getUpdate),
 		InstanceMethod("Play", &WrappedPlayer::Play),
 		InstanceMethod("Pause", &WrappedPlayer::Pause),
+		InstanceMethod("PlayPause", &WrappedPlayer::PlayPause),
 		InstanceMethod("Stop", &WrappedPlayer::Stop),
 		InstanceMethod("Next", &WrappedPlayer::Next),
 		InstanceMethod("Previous", &WrappedPlayer::Previous),
@@ -90,7 +91,7 @@ Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 				Napi::Object jsArtData = Napi::Object::New(env);
 				jsArtData.Set("size", Napi::Number::New(env, update->metadata->artData.size));
 				jsArtData.Set("type", Napi::String::New(env, update->metadata->artData.type));
-				//jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata->artData.data, update->metadata->artData.size));
+				jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata->artData.data, update->metadata->artData.size));
 				jsMetadata.Set("artData", jsArtData);
 			}
 			
