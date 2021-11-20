@@ -1,4 +1,4 @@
-declare class IPlayer {
+export default class IPlayer {
     constructor(callback: Function);
     getUpdate(): Update|null;
     Play(): void;
@@ -57,6 +57,3 @@ export type Update = {
 	app: string;
 	appName: string;
 };
-
-declare const Player: IPlayer;
-export default Player;
