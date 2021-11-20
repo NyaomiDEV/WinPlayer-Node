@@ -1,6 +1,7 @@
 #ifndef WINPLAYER_H
 #define WINPLAYER_H
 
+#include <winrt/base.h>
 #include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Media.Control.h>
 #include <winrt/Windows.Foundation.h>
