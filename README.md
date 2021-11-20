@@ -1,8 +1,13 @@
 # WinPlayer-Node
 
+## The aim
+
+Controlling media playback programmatically is an art. Doing so on Windows is also a problem. This project aims to be able to query and control media playback on Windows using the native Windows Runtime.
+
 ## Current problems
-- Sometimes, the polling makes v8 crash
-- Electron hangs on cover art retrieval
+- Sometimes the update polling makes v8 crash.
+- Electron hangs on cover art retrieval.
+- In general (aside from events), everything is laggy.
 
 ## To do
 - All asynchronous operations in WinRT should be mapped to promises and be resolved asynchronously, saved for those which we can fire and forget (like playback control)
@@ -23,9 +28,7 @@
 	player = new Player(onUpdate);
 ```
 
-## The aim
-
-I wanted to make a Windows media controller, so that I can integrate Node apps with it.
+Consult the [type definitions file](index.d.ts) for all the available methods and return types.
 
 ## Why not NodeRT?
 
