@@ -1,5 +1,5 @@
-export interface IPlayer {
-    constructor(callback: Function): IPlayer;
+declare class IPlayer {
+    constructor(callback: Function);
     getUpdate(): Update|null;
     Play(): void;
     Pause(): void;
@@ -16,8 +16,8 @@ export interface IPlayer {
     // @deprecated
     GetVolume(): number;
     // @deprecated
-    SetVolume(volume: float): number;
-};
+    SetVolume(volume: number): number;
+}
 
 export type ArtData = {
 	data: Buffer;
@@ -47,7 +47,7 @@ export type Capabilities = {
 
 export type Update = {
 	provider: "WinPlayer";
-	metadata?: Metadata;
+	metadata: Metadata;
 	capabilities: Capabilities;
 	status: string;
 	loop: string;
