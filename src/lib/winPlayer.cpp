@@ -10,12 +10,12 @@ void Player::updatePlayers(){
 	auto sessions = this->sessionManager->GetSessions();
 	for(uint32_t i = 0; i < sessions.Size(); i++){
 		const auto player = sessions.GetAt(i);
-		auto AUMID = player.SourceAppUserModelId().c_str();
+		auto AUMID = winrt::to_string(player.SourceAppUserModelId());
 		this->addPlayer(AUMID, player);
 	}
 }
 
-std::wstring Player::getPlayerName(GlobalSystemMediaTransportControlsSession const& player){
+std::string Player::getPlayerName(GlobalSystemMediaTransportControlsSession const& player){
 	auto playerName = player.SourceAppUserModelId();
 #if WDK_NTDDI_VERSION >= NTDDI_WIN10_MN
 	try {
@@ -30,21 +30,21 @@ std::wstring Player::getPlayerName(GlobalSystemMediaTransportControlsSession con
 		}
 	}
 #endif
-	return playerName.c_str();
+	return winrt::to_string(playerName);
 }
 
-void Player::addPlayer(std::wstring const AUMID, GlobalSystemMediaTransportControlsSession const& player){
+void Player::addPlayer(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player){
 	this->players.insert(std::pair(AUMID, player));
 	this->registerPlayerEvents(AUMID, player);
 	this->calculateActivePlayer(AUMID);
 }
 
-void Player::removePlayer(std::wstring const AUMID){
+void Player::removePlayer(std::string const AUMID){
 	this->players.erase(AUMID);
 	this->calculateActivePlayer(std::nullopt);
 }
 
-void Player::registerPlayerEvents(std::wstring const AUMID, GlobalSystemMediaTransportControlsSession const& player){
+void Player::registerPlayerEvents(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player){
 	// Playing, Stopped, etc
 	player.PlaybackInfoChanged(winrt::auto_revoke, [this](GlobalSystemMediaTransportControlsSession player, PlaybackInfoChangedEventArgs args){
 		if(this->callback.has_value()) (this->callback.value())();
@@ -61,9 +61,9 @@ void Player::registerPlayerEvents(std::wstring const AUMID, GlobalSystemMediaTra
 	}).swap(this->timelinePropertiesChangedHandlers[AUMID]);
 }
 
-void Player::calculateActivePlayer(std::optional<std::wstring> const preferred){
-	std::optional<std::wstring> _activePlayer;
-	std::map<std::wstring, std::optional<GlobalSystemMediaTransportControlsSession>>::iterator it = this->players.begin();
+void Player::calculateActivePlayer(std::optional<std::string> const preferred){
+	std::optional<std::string> _activePlayer;
+	std::map<std::string, std::optional<GlobalSystemMediaTransportControlsSession>>::iterator it = this->players.begin();
 
 	while(it != this->players.end()){
 		if(it->second->GetPlaybackInfo().PlaybackStatus() == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing){
@@ -93,14 +93,14 @@ std::optional<Metadata> Player::getMetadata(GlobalSystemMediaTransportControlsSe
 		auto info = player.TryGetMediaPropertiesAsync().get();
 		Metadata metadata;
 
-		metadata.title = info.Title().c_str();
-		metadata.album = info.AlbumTitle().c_str();
-		metadata.artist = info.Artist().c_str();
-		metadata.albumArtist = info.AlbumArtist().c_str();
-		metadata.artists = {info.Artist().c_str()};
-		metadata.albumArtists = {info.AlbumArtist().c_str()};
+		metadata.title = winrt::to_string(info.Title());
+		metadata.album = winrt::to_string(info.AlbumTitle());
+		metadata.artist = winrt::to_string(info.Artist());
+		metadata.albumArtist = winrt::to_string(info.AlbumArtist());
+		metadata.artists = {winrt::to_string(info.Artist())};
+		metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
 		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
-		metadata.id = metadata.albumArtist + L":" + metadata.artist + L":" + metadata.album + L":" + metadata.title + L":" + std::to_wstring(metadata.length);
+		metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
 
 		auto thumbnail = info.Thumbnail();
 		if(thumbnail) {
@@ -110,12 +110,12 @@ std::optional<Metadata> Player::getMetadata(GlobalSystemMediaTransportControlsSe
 				data = stream.ReadAsync(data, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
 				metadata.artData.data = data.data();
 				metadata.artData.size = data.Capacity();
-				metadata.artData.type = stream.ContentType();
+				metadata.artData.type = winrt::to_string(stream.ContentType());
 			}
 		}else{
-			metadata.artData.data = 0;
+			metadata.artData.data = nullptr;
 			metadata.artData.size = 0;
-			metadata.artData.type = L"NULL";
+			metadata.artData.type = "NULL";
 		}
 
 		return metadata;
@@ -164,7 +164,7 @@ std::optional<Update> Player::getUpdate(){
 
 	Update update;
 
-	update.app = player->SourceAppUserModelId();
+	update.app = winrt::to_string(player->SourceAppUserModelId());
 	update.appName = this->getPlayerName(*player);
 
 	if(playbackInfo.IsShuffleActive()){
@@ -180,35 +180,35 @@ std::optional<Update> Player::getUpdate(){
 
 	switch(playbackInfo.PlaybackStatus()) {
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing:
-			update.status = L"Playing";
+			update.status = "Playing";
 			break;
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused:
-			update.status = L"Paused";
+			update.status = "Paused";
 			break;
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing:
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed:
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened:
 		case GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped:
 		default:
-			update.status = L"Stopped";
+			update.status = "Stopped";
 			break;
 	}
 
 	if(playbackInfo.AutoRepeatMode()){
 		switch(playbackInfo.AutoRepeatMode().Value()){
 			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List:
-				update.loop = L"Playlist";
+				update.loop = "Playlist";
 				break;
 			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track:
-				update.loop = L"Track";
+				update.loop = "Track";
 				break;
 			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None:
 			default:
-				update.loop = L"None";
+				update.loop = "None";
 				break;
 		}
 	}else{
-		update.loop = L"None";
+		update.loop = "None";
 	}
 
 	update.metadata = this->getMetadata(*player);

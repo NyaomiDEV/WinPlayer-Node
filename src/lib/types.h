@@ -8,17 +8,17 @@
 struct ArtData {
 	uint8_t* data;
 	int size;
-	std::wstring type;
+	std::string type;
 };
 
 struct Metadata {
-	std::wstring id;
-	std::wstring title;
-	std::wstring artist;
-	std::vector<std::wstring> artists;
-	std::wstring album;
-	std::wstring albumArtist;
-	std::vector<std::wstring> albumArtists;
+	std::string id;
+	std::string title;
+	std::string artist;
+	std::vector<std::string> artists;
+	std::string album;
+	std::string albumArtist;
+	std::vector<std::string> albumArtists;
 	ArtData artData;
 	float length;
 };
@@ -34,13 +34,13 @@ struct Capabilities {
 struct Update {
 	std::optional<Metadata> metadata;
 	Capabilities capabilities;
-	std::wstring status;
-	std::wstring loop;
+	std::string status;
+	std::string loop;
 	bool shuffle;
 	float volume;
 	float elapsed;
-	std::wstring app;
-	std::wstring appName;
+	std::string app;
+	std::string appName;
 };
 
 #endif // WINPLAYER_TYPES_H
