@@ -1,5 +1,6 @@
 const Player = require("./");
 
+/** @type {import("./").IPlayer} */
 let player;
 
 function onUpdate(){
