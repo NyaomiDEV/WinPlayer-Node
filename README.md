@@ -6,7 +6,7 @@
 
 ## To do
 - All asynchronous operations in WinRT should be mapped to promises and be resolved asynchronously, saved for those which we can fire and forget (like playback control)
--- The worst offender right now is the metadata retrieval; it takes too long and it blocks the main event loop
+  - The worst offender right now is the metadata retrieval; it takes too long and it blocks the main event loop
 
 ## Usage
 
