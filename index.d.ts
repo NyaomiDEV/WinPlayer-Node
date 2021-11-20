@@ -46,6 +46,7 @@ export type Capabilities = {
 };
 
 export type Update = {
+	provider: "WinPlayer";
 	metadata?: Metadata;
 	capabilities: Capabilities;
 	status: string;
