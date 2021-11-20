@@ -1,4 +1,6 @@
 #include "winPlayer.h"
+#include "util.cpp"
+#include <iostream>
 
 // private
 void Player::updatePlayers(){
@@ -87,45 +89,44 @@ void Player::calculateActivePlayer(std::optional<std::string> const preferred){
 	if(this->callback.has_value()) (this->callback.value())();
 }
 
-std::optional<Metadata> Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
-	auto timelineProperties = player.GetTimelineProperties();
-	try{
-		auto info = player.TryGetMediaPropertiesAsync().get();
-		Metadata metadata;
+concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
+	return concurrency::create_task([player]()->std::optional<Metadata>{
+		auto timelineProperties = player.GetTimelineProperties();
+		try	{
+			auto info = player.TryGetMediaPropertiesAsync().get();
+			Metadata metadata;
 
-		metadata.title = winrt::to_string(info.Title());
-		metadata.album = winrt::to_string(info.AlbumTitle());
-		metadata.artist = winrt::to_string(info.Artist());
-		metadata.albumArtist = winrt::to_string(info.AlbumArtist());
-		metadata.artists = {winrt::to_string(info.Artist())};
-		metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
-		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
-		metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
+			metadata.title = winrt::to_string(info.Title());
+			metadata.album = winrt::to_string(info.AlbumTitle());
+			metadata.artist = winrt::to_string(info.Artist());
+			metadata.albumArtist = winrt::to_string(info.AlbumArtist());
+			metadata.artists = {winrt::to_string(info.Artist())};
+			metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
+			metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
+			metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
+			metadata.artData.data = std::vector<uint8_t>();
+			metadata.artData.type = "NULL";
 
-		metadata.artData.data = nullptr;
-		metadata.artData.size = 0;
-		metadata.artData.type = "NULL";
-		auto thumbnail = info.Thumbnail();
-		if (thumbnail){
-			auto asyncStream = thumbnail.OpenReadAsync();
-			if (asyncStream.wait_for(std::chrono::seconds(1)) == winrt::Windows::Foundation::AsyncStatus::Completed && asyncStream.GetResults().CanRead()){
-				winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(asyncStream.GetResults().Size());
-				data = asyncStream.GetResults().ReadAsync(data, asyncStream.GetResults().Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
-				metadata.artData.data = data.data();
-				metadata.artData.size = data.Capacity();
-				metadata.artData.type = winrt::to_string(asyncStream.GetResults().ContentType());
+			auto thumbnail = info.Thumbnail();
+			if (thumbnail){
+				auto asyncStream = thumbnail.OpenReadAsync();
+				if (asyncStream.wait_for(std::chrono::seconds(1)) == winrt::Windows::Foundation::AsyncStatus::Completed && asyncStream.GetResults().CanRead()){
+					winrt::Windows::Storage::Streams::IBuffer data = winrt::Windows::Storage::Streams::Buffer(asyncStream.GetResults().Size());
+					data = asyncStream.GetResults().ReadAsync(data, asyncStream.GetResults().Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None).get();
+					std::copy(data.data(), data.data() + data.Capacity(), std::back_inserter(metadata.artData.data));
+					metadata.artData.type = winrt::to_string(asyncStream.GetResults().ContentType());
+				}
 			}
+			return metadata;
+		} catch (winrt::hresult_error e) {
+			// oof
+			return {};
 		}
-
-		return metadata;
-	}catch(winrt::hresult_error e){
-		// oof
-		return {};
-	}
+	});
 }
 
-Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSession const& player){
-	auto controls = player.GetPlaybackInfo().Controls();
+Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSessionPlaybackInfo const& playbackInfo){
+	auto controls = playbackInfo.Controls();
 
 	Capabilities caps;
 
@@ -162,6 +163,9 @@ std::optional<Update> Player::getUpdate(){
 	auto timelineProperties = player->GetTimelineProperties();
 
 	Update update;
+	// Fire the async metadata retrieval
+	auto metadata = this->getMetadata(*player);
+	update.capabilities = this->getCapabilities(playbackInfo);
 
 	update.app = winrt::to_string(player->SourceAppUserModelId());
 	update.appName = this->getPlayerName(*player);
@@ -210,69 +214,71 @@ std::optional<Update> Player::getUpdate(){
 		update.loop = "None";
 	}
 
-	update.metadata = this->getMetadata(*player);
-	update.capabilities = this->getCapabilities(*player);
+	// get metadata now
+	update.metadata = metadata.get();
 
 	return update;
 }
 
 void Player::Play(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TryPlayAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TryPlayAsync());
 };
 
 void Player::Pause(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TryPauseAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TryPauseAsync());
 }
 
 void Player::PlayPause(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TryTogglePlayPauseAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TryTogglePlayPauseAsync());
 }
 
 void Player::Stop(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TryStopAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TryStopAsync());
 }
 
 void Player::Next(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TrySkipNextAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TrySkipNextAsync());
 }
 
 void Player::Previous(){
-	if(this->activePlayer.has_value()) this->players[this->activePlayer.value()]->TrySkipPreviousAsync().get();
+	if(this->activePlayer.has_value()) FireAndForget(this->players[this->activePlayer.value()]->TrySkipPreviousAsync());
 }
 
 void Player::Shuffle(){
-	if(this->activePlayer.has_value()){
-		auto player = this->players[this->activePlayer.value()];
-		auto playbackInfo = player->GetPlaybackInfo();
-		bool isShuffle = false;
-		if(playbackInfo.IsShuffleActive())
-			isShuffle = playbackInfo.IsShuffleActive().Value();
-		player->TryChangeShuffleActiveAsync(!isShuffle).get();
-	}
+	if(!this->activePlayer.has_value())
+		return;
+	
+	auto player = this->players[this->activePlayer.value()];
+	auto playbackInfo = player->GetPlaybackInfo();
+	bool isShuffle = false;
+	if(playbackInfo.IsShuffleActive())
+		isShuffle = playbackInfo.IsShuffleActive().Value();
+	FireAndForget(player->TryChangeShuffleActiveAsync(!isShuffle));
 }
 
 void Player::Repeat(){
-	if(this->activePlayer.has_value()){
-		auto player = this->players[this->activePlayer.value()];
-		auto playbackInfo = player->GetPlaybackInfo();
-		auto repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
-		if(playbackInfo.AutoRepeatMode())
-			repeat = playbackInfo.AutoRepeatMode().Value();
+	if(!this->activePlayer.has_value())
+		return;
 
-		switch (repeat){
-			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List:
-				repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track;
-				break;
-			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track:
-				repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
-				break;
-			case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None:
-				repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List;
-				break;
-		}
+	auto player = this->players[this->activePlayer.value()];
+	auto playbackInfo = player->GetPlaybackInfo();
+	auto repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+	if(playbackInfo.AutoRepeatMode())
+		repeat = playbackInfo.AutoRepeatMode().Value();
 
-		player->TryChangeAutoRepeatModeAsync(repeat).get();
+	switch (repeat){
+		case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List:
+			repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track;
+			break;
+		case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track:
+			repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+			break;
+		case winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None:
+			repeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List;
+			break;
 	}
+
+	FireAndForget(player->TryChangeAutoRepeatModeAsync(repeat));
 }
 
 void Player::Seek(int const offsetUs){
@@ -281,7 +287,7 @@ void Player::Seek(int const offsetUs){
 	
 	auto player = this->players[this->activePlayer.value()];
     winrt::Windows::Foundation::TimeSpan offset = std::chrono::microseconds(offsetUs);
-    player->TryChangePlaybackPositionAsync((player->GetTimelineProperties().Position() + offset).count()).get();
+    FireAndForget(player->TryChangePlaybackPositionAsync((player->GetTimelineProperties().Position() + offset).count()));
 }
 
 void Player::SeekPercentage(float const percentage){
@@ -299,7 +305,7 @@ void Player::SetPosition(float const positionS){
 
 	auto player = this->players[this->activePlayer.value()];
 	winrt::Windows::Foundation::TimeSpan position = std::chrono::milliseconds(static_cast<int>(positionS * 1000));
-    player->TryChangePlaybackPositionAsync((player->GetTimelineProperties().StartTime() + position).count()).get();
+    FireAndForget(player->TryChangePlaybackPositionAsync((player->GetTimelineProperties().StartTime() + position).count()));
 }
 
 float Player::GetPosition(){

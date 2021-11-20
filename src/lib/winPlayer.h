@@ -11,6 +11,8 @@
 #include <chrono>
 #include <functional>
 
+#include <ppltasks.h>
+#include <pplawait.h>
 #include <sdkddkver.h>
 
 #include "types.h"
@@ -37,8 +39,8 @@ class Player {
 		void removePlayer(std::string const AUMID);
 		void registerPlayerEvents(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player);
 		void calculateActivePlayer(std::optional<std::string> const preferred);
-		std::optional<Metadata> getMetadata(GlobalSystemMediaTransportControlsSession const& player);
-		Capabilities getCapabilities(GlobalSystemMediaTransportControlsSession const& player);
+		concurrency::task<std::optional<Metadata>> getMetadata(GlobalSystemMediaTransportControlsSession const& player);
+		Capabilities getCapabilities(GlobalSystemMediaTransportControlsSessionPlaybackInfo const& playbackInfo);
 	public:
 		Player();
 		void setCallback(CallbackFn const callback);

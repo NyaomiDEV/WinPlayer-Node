@@ -6,8 +6,7 @@
 #include <vector>
 
 struct ArtData {
-	uint8_t* data;
-	int size;
+	std::vector<uint8_t> data;
 	std::string type;
 };
 

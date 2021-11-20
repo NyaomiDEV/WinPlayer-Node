@@ -14,12 +14,13 @@
     "rebuild": "node-gyp rebuild",
     "clean": "node-gyp clean",
     "install": "node-gyp rebuild"
- },
+  },
   "dependencies": {
     "bindings": "^1.5.0",
     "node-addon-api": "^4.2.0"
   },
   "devDependencies": {
+    "@types/node": "^16.11.9",
     "node-gyp": "^8.4.0"
   }
 }
