@@ -89,7 +89,11 @@ Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 			Napi::Object jsArtData = Napi::Object::New(env);
 			jsArtData.Set("size", Napi::Number::New(env, update->metadata->artData.size));
 			jsArtData.Set("type", Napi::String::New(env, std::u16string(update->metadata->artData.type.begin(), update->metadata->artData.type.end())));
-			jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata->artData.data, update->metadata->artData.size));
+			if(update->metadata->artData.data){
+				jsArtData.Set("data", Napi::Buffer<uint8_t>::New(env, update->metadata->artData.data, update->metadata->artData.size));
+			}else{
+				jsArtData.Set("data", info.Env().Null());
+			}
 			jsMetadata.Set("artData", jsArtData);
 		}else{
 			jsMetadata.Set("id", info.Env().Undefined());
