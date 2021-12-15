@@ -3,9 +3,11 @@
 
 #include <winrt/base.h>
 #include <winrt/Windows.ApplicationModel.h>
-#include <winrt/Windows.Media.Control.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Graphics.Imaging.h>
+#include <winrt/Windows.Media.Control.h>
+#include <winrt/Windows.Security.Cryptography.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.System.h>
 
@@ -40,7 +42,7 @@ class Player {
 		void removePlayer(std::string const AUMID);
 		void registerPlayerEvents(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player);
 		void calculateActivePlayer(std::optional<std::string> const preferred);
-		concurrency::task<std::optional<Metadata>> getMetadata(GlobalSystemMediaTransportControlsSession const& player);
+		concurrency::task<std::optional<Metadata>> getMetadata(GlobalSystemMediaTransportControlsSession const &player);
 		Capabilities getCapabilities(GlobalSystemMediaTransportControlsSessionPlaybackInfo const& playbackInfo);
 	public:
 		Player();

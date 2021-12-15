@@ -1,6 +1,7 @@
 #ifndef WINPLAYER_TYPES_H
 #define WINPLAYER_TYPES_H
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>

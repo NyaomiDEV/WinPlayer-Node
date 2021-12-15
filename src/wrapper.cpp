@@ -88,7 +88,7 @@ Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 			jsMetadata.Set("albumArtists", jsAlbumArtists);
 
 			if(update->metadata->artData.data.size() > 0){
-				Napi::ArrayBuffer buf = Napi::ArrayBuffer::New(env, update->metadata->artData.data.data(), update->metadata->artData.data.size());
+				Napi::Buffer buf = Napi::Buffer<uint8_t>::Copy(env, update->metadata->artData.data.data(), update->metadata->artData.data.size());
 
 				Napi::Object jsArtData = Napi::Object::New(env);
 				jsArtData.Set("type", Napi::String::New(env, update->metadata->artData.type));

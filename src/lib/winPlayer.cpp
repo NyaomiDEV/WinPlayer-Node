@@ -1,6 +1,5 @@
 #include "winPlayer.h"
 #include "util.cpp"
-#include <iostream>
 
 // private
 void Player::updatePlayers(){
@@ -90,43 +89,39 @@ void Player::calculateActivePlayer(std::optional<std::string> const preferred){
 }
 
 concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
-	return concurrency::create_task([player]()->std::optional<Metadata>{
-		auto timelineProperties = player.GetTimelineProperties();
-		try	{
-			auto info = player.TryGetMediaPropertiesAsync().get();
-			Metadata metadata;
+	auto timelineProperties = player.GetTimelineProperties();
+	try	{
+		auto info = co_await player.TryGetMediaPropertiesAsync();
+		Metadata metadata;
 
-			metadata.title = winrt::to_string(info.Title());
-			metadata.album = winrt::to_string(info.AlbumTitle());
-			metadata.artist = winrt::to_string(info.Artist());
-			metadata.albumArtist = winrt::to_string(info.AlbumArtist());
-			metadata.artists = {winrt::to_string(info.Artist())};
-			metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
-			metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
-			metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
-			metadata.artData.type = "NULL";
+		metadata.title = winrt::to_string(info.Title());
+		metadata.album = winrt::to_string(info.AlbumTitle());
+		metadata.artist = winrt::to_string(info.Artist());
+		metadata.albumArtist = winrt::to_string(info.AlbumArtist());
+		metadata.artists = {winrt::to_string(info.Artist())};
+		metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
+		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
+		metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
+		metadata.artData.type = "NULL";
 
-			auto thumbnail = info.Thumbnail();
-			if (thumbnail){
-				auto asyncStream = thumbnail.OpenReadAsync();
-
-				if (asyncStream.wait_for(std::chrono::seconds(5)) == winrt::Windows::Foundation::AsyncStatus::Completed){
-					auto stream = asyncStream.GetResults();
-					if(stream.CanRead()){
-						metadata.artData.type = winrt::to_string(stream.ContentType());
-						auto reader = winrt::Windows::Storage::Streams::DataReader(stream.GetInputStreamAt(0));
-						reader.LoadAsync(stream.Size()).get();
-						while(reader.UnconsumedBufferLength()) metadata.artData.data.push_back(reader.ReadByte());
-						// This is bugged pls fix
-					}
-				}
+		auto thumbnail = info.Thumbnail();
+		if (thumbnail){
+			auto stream = co_await thumbnail.OpenReadAsync();
+			if (stream.CanRead() && stream.Size() > 0){
+				winrt::Windows::Storage::Streams::IBuffer buffer = winrt::Windows::Storage::Streams::Buffer(stream.Size());
+				buffer = co_await stream.ReadAsync(buffer, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None);
+				co_await stream.FlushAsync();
+				stream.Close();
+				auto data = buffer.data();
+				metadata.artData.data = std::vector<uint8_t>(&data[0], &data[buffer.Length() - 1]);
+				metadata.artData.type = winrt::to_string(stream.ContentType());
 			}
-			return metadata;
-		} catch (winrt::hresult_error e) {
-			// oof
-			return {};
 		}
-	});
+		co_return metadata;
+	} catch (winrt::hresult_error e) {
+		// oof
+		co_return {};
+	}
 }
 
 Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSessionPlaybackInfo const& playbackInfo){

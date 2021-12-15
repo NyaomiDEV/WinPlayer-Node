@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.json5": "json5",
         "chrono": "cpp",
         "optional": "cpp",
         "algorithm": "cpp",
@@ -70,6 +71,8 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "fstream": "cpp",
+        "condition_variable": "cpp"
     }
 }
