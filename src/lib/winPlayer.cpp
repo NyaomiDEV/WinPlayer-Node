@@ -1,6 +1,8 @@
 #include "winPlayer.h"
 #include "util.cpp"
 
+#include <iostream>
+
 // private
 void Player::updatePlayers(){
 	this->activePlayer.reset();
@@ -8,6 +10,8 @@ void Player::updatePlayers(){
 	this->playbackInfoChangedHandlers.clear();
 	this->mediaPropertiesChangedHandlers.clear();
 	this->timelinePropertiesChangedHandlers.clear();
+	if (this->callback.has_value()) (this->callback.value())();
+
 	auto sessions = this->sessionManager->GetSessions();
 	for(uint32_t i = 0; i < sessions.Size(); i++){
 		const auto player = sessions.GetAt(i);
@@ -101,8 +105,16 @@ concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMedia
 		metadata.artists = {winrt::to_string(info.Artist())};
 		metadata.albumArtists = {winrt::to_string(info.AlbumArtist())};
 		metadata.length = std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime() - timelineProperties.StartTime()).count() / 1000.0;
-		metadata.id = metadata.albumArtist + ":" + metadata.artist + ":" + metadata.album + ":" + metadata.title + ":" + std::to_string(metadata.length);
-		metadata.artData.type = "NULL";
+
+		auto id = winrt::to_hstring(metadata.albumArtist + metadata.artist + metadata.album + metadata.title);
+		if(id.size() > 0){
+			auto md5 = winrt::Windows::Security::Cryptography::Core::HashAlgorithmProvider::OpenAlgorithm(winrt::Windows::Security::Cryptography::Core::HashAlgorithmNames::Md5());
+			winrt::Windows::Storage::Streams::IBuffer idBuf = winrt::Windows::Security::Cryptography::CryptographicBuffer::ConvertStringToBinary(
+				id,
+				winrt::Windows::Security::Cryptography::BinaryStringEncoding::Utf8
+			);
+			metadata.id = winrt::to_string(winrt::Windows::Security::Cryptography::CryptographicBuffer::EncodeToHexString(md5.HashData(idBuf)));
+		}
 
 		auto thumbnail = info.Thumbnail();
 		if (thumbnail){
@@ -114,7 +126,10 @@ concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMedia
 				stream.Close();
 				auto data = buffer.data();
 				metadata.artData.data = std::vector<uint8_t>(&data[0], &data[buffer.Length() - 1]);
-				metadata.artData.type = winrt::to_string(stream.ContentType());
+				std::istringstream contentType(winrt::to_string(stream.ContentType()));
+				std::string s;
+				while(std::getline(contentType, s, ','))
+					metadata.artData.type.push_back(s);
 			}
 		}
 		co_return metadata;
@@ -124,15 +139,15 @@ concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMedia
 	}
 }
 
-Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSessionPlaybackInfo const& playbackInfo){
-	auto controls = playbackInfo.Controls();
+Capabilities Player::getCapabilities(GlobalSystemMediaTransportControlsSession const& player){
+	auto controls = player.GetPlaybackInfo().Controls();
 
 	Capabilities caps;
 
 	caps.canPlayPause = controls.IsPlayEnabled() || controls.IsPauseEnabled();
 	caps.canGoNext = controls.IsNextEnabled();
 	caps.canGoPrevious = controls.IsPreviousEnabled();
-	caps.canSeek = controls.IsPlaybackPositionEnabled();
+	caps.canSeek = controls.IsPlaybackPositionEnabled() && std::chrono::duration_cast<std::chrono::milliseconds>(player.GetTimelineProperties().EndTime()).count() != 0;
 
 	caps.canControl = caps.canPlayPause || caps.canGoNext || caps.canGoPrevious || caps.canSeek;
 
@@ -164,7 +179,7 @@ std::optional<Update> Player::getUpdate(){
 	Update update;
 	// Fire the async metadata retrieval
 	auto metadata = this->getMetadata(*player);
-	update.capabilities = this->getCapabilities(playbackInfo);
+	update.capabilities = this->getCapabilities(*player);
 
 	update.app = winrt::to_string(player->SourceAppUserModelId());
 	update.appName = this->getPlayerName(*player);
@@ -313,7 +328,24 @@ float Player::GetPosition(){
 
 	auto player = this->players[this->activePlayer.value()];
 	auto timelineProperties = player->GetTimelineProperties();
-	return std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.Position() - timelineProperties.StartTime()).count() / 1000.0;
+
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime()).count() == 0)
+		return 0.0;
+
+	auto position = timelineProperties.Position();
+
+	if (player->GetPlaybackInfo().PlaybackStatus() == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing){
+			auto timeFromLastUpdate = winrt::clock::now().time_since_epoch() - timelineProperties.LastUpdatedTime().time_since_epoch();
+			position += timeFromLastUpdate;
+		}
+
+/* 	std::cout
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.StartTime()).count() << std::endl
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.EndTime()).count() << std::endl
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.Position()).count() << std::endl
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(timelineProperties.LastUpdatedTime().time_since_epoch()).count() << std::endl; */
+
+	return std::chrono::duration_cast<std::chrono::milliseconds>(position - timelineProperties.StartTime()).count() / 1000.0;
 }
 
 float Player::GetVolume(){

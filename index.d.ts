@@ -21,7 +21,7 @@ export default class IPlayer {
 
 export type ArtData = {
 	data: Buffer;
-	type: string;
+	type: string[];
 };
 
 export type Metadata = {

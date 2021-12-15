@@ -8,7 +8,7 @@
 
 struct ArtData {
 	std::vector<uint8_t> data;
-	std::string type;
+	std::vector<std::string> type;
 };
 
 struct Metadata {

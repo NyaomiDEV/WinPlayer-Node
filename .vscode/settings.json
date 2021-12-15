@@ -73,6 +73,7 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "fstream": "cpp",
-        "condition_variable": "cpp"
+        "condition_variable": "cpp",
+        "resumable": "cpp"
     }
 }
