@@ -43,12 +43,12 @@ class Player {
 		void removePlayer(std::string const AUMID);
 		void registerPlayerEvents(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player);
 		void calculateActivePlayer(std::optional<std::string> const preferred);
-		concurrency::task<std::optional<Metadata>> getMetadata(GlobalSystemMediaTransportControlsSession const& player);
+		concurrency::task<std::optional<Metadata>> getMetadata(GlobalSystemMediaTransportControlsSession player);
 		Capabilities getCapabilities(GlobalSystemMediaTransportControlsSession const& player);
 	public:
 		Player();
 		void setCallback(CallbackFn const callback);
-		std::optional<Update> getUpdate();
+		concurrency::task<std::optional<Update>> getUpdate();
 		void Play();
 		void Pause();
 		void PlayPause();

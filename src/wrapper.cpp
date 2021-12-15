@@ -47,7 +47,7 @@ WrappedPlayer::WrappedPlayer(const Napi::CallbackInfo &info) : Napi::ObjectWrap<
 
 Napi::Value WrappedPlayer::getUpdate(const Napi::CallbackInfo &info){
 	auto env = info.Env();
-	auto update = this->_player.getUpdate();
+	auto update = this->_player.getUpdate().get();
 	if(update.has_value()){
 		Napi::Object jsUpdate = Napi::Object::New(env);
 

@@ -92,7 +92,7 @@ void Player::calculateActivePlayer(std::optional<std::string> const preferred){
 	if(this->callback.has_value()) (this->callback.value())();
 }
 
-concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMediaTransportControlsSession const& player){
+concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMediaTransportControlsSession player){
 	auto timelineProperties = player.GetTimelineProperties();
 	try	{
 		auto info = co_await player.TryGetMediaPropertiesAsync();
@@ -168,7 +168,7 @@ void Player::setCallback(CallbackFn const callback){
 	(this->callback.value())();
 }
 
-std::optional<Update> Player::getUpdate(){
+concurrency::task<std::optional<Update>> Player::getUpdate(){
 	if(!this->activePlayer.has_value())
 		return {};
 
@@ -229,9 +229,9 @@ std::optional<Update> Player::getUpdate(){
 	}
 
 	// get metadata now
-	update.metadata = metadata.get();
+	update.metadata = co_await metadata;
 
-	return update;
+	co_return update;
 }
 
 void Player::Play(){
