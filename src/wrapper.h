@@ -27,4 +27,10 @@ class WrappedPlayer : public Napi::ObjectWrap<WrappedPlayer> {
 		Napi::Value SetVolume(const Napi::CallbackInfo& info);
 };
 
+Napi::Value stringOrUndefined(const Napi::Env &env, std::string value){
+	if (value.size() > 0)
+		return Napi::String::New(env, value);
+	return env.Undefined();
+}
+
 #endif // WINPLAYER_NODE_WRAPPER_H
