@@ -2,11 +2,9 @@ const Player = require("./");
 
 /** @type {import("./").IPlayer} */
 let player;
-/** @type {import("./").Update} */
-let update;
 
 async function onUpdate(){
-    update = await player.getUpdate();
+    const update = await player.getUpdate();
     console.log(require("util").inspect(update, false, null, true /* enable colors */));
 }
 

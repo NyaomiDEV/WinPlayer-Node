@@ -16,7 +16,7 @@ UpdateWorker::UpdateWorker(Player &player, Napi::Promise::Deferred const& promis
 }
 
 void UpdateWorker::Execute() {
-	this->currentUpdate = *this->player->getUpdate().get();
+	this->currentUpdate = this->player->getUpdate().get();
 }
 
 void UpdateWorker::OnOK() {
