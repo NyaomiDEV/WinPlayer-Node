@@ -1,7 +1,21 @@
 #include "winPlayer.h"
-#include "util.cpp"
+#include "util.h"
 
-#include <iostream>
+#include <winrt/Windows.ApplicationModel.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Security.Cryptography.Core.h>
+#include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.System.h>
+
+#include <chrono>
+#include <functional>
+#include <sstream>
+
+#include <ppltasks.h>
+#include <pplawait.h>
+
+#include <sdkddkver.h>
 
 // private
 void Player::updatePlayers(){
@@ -20,11 +34,11 @@ void Player::updatePlayers(){
 	}
 }
 
-std::string Player::getPlayerName(GlobalSystemMediaTransportControlsSession const& player){
+concurrency::task<std::string> Player::getPlayerName(GlobalSystemMediaTransportControlsSession player){
 	auto playerName = player.SourceAppUserModelId();
 #if WDK_NTDDI_VERSION >= NTDDI_WIN10_MN
 	try {
-		auto user = winrt::Windows::System::User::FindAllAsync().get().GetAt(0);
+		auto user = (co_await winrt::Windows::System::User::FindAllAsync()).GetAt(0);
 		playerName = winrt::Windows::ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(user, playerName).DisplayInfo().DisplayName();
 	} catch (winrt::hresult_error e) {
 		try {
@@ -35,7 +49,7 @@ std::string Player::getPlayerName(GlobalSystemMediaTransportControlsSession cons
 		}
 	}
 #endif
-	return winrt::to_string(playerName);
+	co_return winrt::to_string(playerName);
 }
 
 void Player::addPlayer(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player){
@@ -182,7 +196,7 @@ concurrency::task<std::optional<Update>> Player::getUpdate(){
 	update.capabilities = this->getCapabilities(*player);
 
 	update.app = winrt::to_string(player->SourceAppUserModelId());
-	update.appName = this->getPlayerName(*player);
+	update.appName = co_await this->getPlayerName(*player);
 
 	if(playbackInfo.IsShuffleActive()){
 		update.shuffle = playbackInfo.IsShuffleActive().Value();

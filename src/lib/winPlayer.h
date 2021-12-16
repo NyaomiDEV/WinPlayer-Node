@@ -2,14 +2,7 @@
 #define WINPLAYER_H
 
 #include <winrt/base.h>
-#include <winrt/Windows.ApplicationModel.h>
-#include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.Foundation.Collections.h>
-#include <winrt/Windows.Graphics.Imaging.h>
 #include <winrt/Windows.Media.Control.h>
-#include <winrt/Windows.Security.Cryptography.Core.h>
-#include <winrt/Windows.Storage.Streams.h>
-#include <winrt/Windows.System.h>
 
 #include <chrono>
 #include <functional>
@@ -17,7 +10,6 @@
 
 #include <ppltasks.h>
 #include <pplawait.h>
-#include <sdkddkver.h>
 
 #include "types.h"
 
@@ -38,7 +30,7 @@ class Player {
 		std::map<std::string, GlobalSystemMediaTransportControlsSession::TimelinePropertiesChanged_revoker> timelinePropertiesChangedHandlers;
 
 		void updatePlayers();
-		std::string getPlayerName(GlobalSystemMediaTransportControlsSession const& player);
+		concurrency::task<std::string> getPlayerName(GlobalSystemMediaTransportControlsSession player);
 		void addPlayer(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player);
 		void removePlayer(std::string const AUMID);
 		void registerPlayerEvents(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player);

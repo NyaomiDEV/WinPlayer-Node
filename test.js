@@ -4,8 +4,9 @@ const Player = require("./");
 let player;
 /** @type {import("./").Update} */
 let update;
-function onUpdate(){
-    update = player.getUpdate();
+
+async function onUpdate(){
+    update = await player.getUpdate();
     console.log(require("util").inspect(update, false, null, true /* enable colors */));
 }
 
