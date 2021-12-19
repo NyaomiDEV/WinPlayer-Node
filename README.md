@@ -4,15 +4,6 @@
 
 Controlling media playback programmatically is an art. Doing so on Windows is also a problem. This project aims to be able to query and control media playback on Windows using the native Windows Runtime.
 
-## Current problems
-- Cover art retrieval is a hit and miss (and mostly a miss) and it causes either segfaults or v8 crashes (depends on Node version, it seems)
-- Because cover art retrieval is a hit and miss, Electron apps flat out crash upon startup.
-- getPosition() doesn't work reliably. It needs some thought to make it report the almost accurate position at the time of the method call (right now it reports position as it was last updated by the player itself)
-
-## To do
-- All asynchronous operations in WinRT should be mapped to promises and be resolved asynchronously
-- Fix the damn cover art crashing the shit out of this library
-
 ## Usage
 
 ```js
