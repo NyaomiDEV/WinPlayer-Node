@@ -2,6 +2,7 @@
 #include "util.h"
 
 #include <winrt/Windows.ApplicationModel.h>
+#include <winrt/Windows.Graphics.Imaging.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Security.Cryptography.Core.h>
@@ -35,21 +36,24 @@ void Player::updatePlayers(){
 }
 
 concurrency::task<std::string> Player::getPlayerName(GlobalSystemMediaTransportControlsSession player){
-	auto playerName = player.SourceAppUserModelId();
+	auto playerName = winrt::to_string(player.SourceAppUserModelId());
 #if WDK_NTDDI_VERSION >= NTDDI_WIN10_MN
 	try {
 		auto user = (co_await winrt::Windows::System::User::FindAllAsync()).GetAt(0);
-		playerName = winrt::Windows::ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(user, playerName).DisplayInfo().DisplayName();
+		playerName = winrt::to_string(winrt::Windows::ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(user, player.SourceAppUserModelId()).DisplayInfo().DisplayName());
 	} catch (winrt::hresult_error e) {
 		try {
 			// possibly?
-			playerName = winrt::Windows::ApplicationModel::AppInfo::GetFromAppUserModelId(playerName).DisplayInfo().DisplayName();
+			playerName = winrt::to_string(winrt::Windows::ApplicationModel::AppInfo::GetFromAppUserModelId(player.SourceAppUserModelId()).DisplayInfo().DisplayName());
 		}catch(winrt::hresult_error e) {
 			// no dice :C
 		}
 	}
 #endif
-	co_return winrt::to_string(playerName);
+	if(winrt::to_string(player.SourceAppUserModelId()) == playerName && endsWith(playerName, ".exe")){
+		playerName = playerName.substr(0, playerName.length() - 4);
+	}
+	co_return playerName;
 }
 
 void Player::addPlayer(std::string const AUMID, GlobalSystemMediaTransportControlsSession const& player){
@@ -134,16 +138,26 @@ concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMedia
 		if (thumbnail){
 			auto stream = co_await thumbnail.OpenReadAsync();
 			if (stream.CanRead() && stream.Size() > 0){
-				winrt::Windows::Storage::Streams::IBuffer buffer = winrt::Windows::Storage::Streams::Buffer(stream.Size());
-				buffer = co_await stream.ReadAsync(buffer, stream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None);
-				co_await stream.FlushAsync();
-				stream.Close();
+				winrt::Windows::Graphics::Imaging::BitmapDecoder decoder = co_await winrt::Windows::Graphics::Imaging::BitmapDecoder::CreateAsync(stream);
+				auto softwareBitmap = co_await decoder.GetSoftwareBitmapAsync();
+
+				auto pngstream = winrt::Windows::Storage::Streams::InMemoryRandomAccessStream::InMemoryRandomAccessStream();
+				auto encoder = co_await winrt::Windows::Graphics::Imaging::BitmapEncoder::CreateAsync(
+					winrt::Windows::Graphics::Imaging::BitmapEncoder::PngEncoderId(),
+					pngstream
+				);
+				encoder.SetSoftwareBitmap(softwareBitmap);
+				co_await encoder.FlushAsync();
+
+ 				winrt::Windows::Storage::Streams::IBuffer buffer = winrt::Windows::Storage::Streams::Buffer(pngstream.Size());
+				buffer = co_await pngstream.ReadAsync(buffer, pngstream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None);
+				co_await pngstream.FlushAsync();
+				pngstream.Close();
+
 				auto data = buffer.data();
+
 				metadata.artData.data = std::vector<uint8_t>(&data[0], &data[buffer.Length() - 1]);
-				std::istringstream contentType(winrt::to_string(stream.ContentType()));
-				std::string s;
-				while(std::getline(contentType, s, ','))
-					metadata.artData.type.push_back(s);
+				metadata.artData.type.push_back("image/png");
 			}
 		}
 		co_return metadata;
