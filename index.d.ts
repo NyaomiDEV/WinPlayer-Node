@@ -1,8 +1,8 @@
 declare const PlayerImpl: Player;
 export default PlayerImpl;
 
-export declare type Player = {
-	constructor(callback: Function): Player;
+export declare interface Player {
+	new(callback: Function): Player;
 	getUpdate(): Promise<Update | null>;
 	Play(): void;
 	Pause(): void;
@@ -20,7 +20,7 @@ export declare type Player = {
 	GetVolume(): number;
 	// @deprecated
 	SetVolume(volume: number): number;
-};
+}
 
 export declare type Position = {
 	howMuch: number;
