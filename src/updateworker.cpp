@@ -1,6 +1,6 @@
 #include "updateworker.h"
 
-#include <iostream>
+#include <chrono>
 
 Napi::Value stringOrUndefined(const Napi::Env &env, std::string value){
 	if (value.size() > 0)
@@ -31,7 +31,18 @@ void UpdateWorker::OnOK() {
 		jsUpdate.Set("appName", stringOrUndefined(env, currentUpdate->appName));
 		jsUpdate.Set("shuffle", Napi::Boolean::New(env, currentUpdate->shuffle));
 		jsUpdate.Set("volume", Napi::Number::New(env, currentUpdate->volume));
-		jsUpdate.Set("elapsed", Napi::Number::New(env, currentUpdate->elapsed));
+
+		Napi::Object jsPosition = Napi::Object::New(env);
+		jsPosition.Set("howMuch", Napi::Number::New(env, currentUpdate->elapsed));
+		jsPosition.Set("when",
+			Napi::Date::New(
+				env,
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::system_clock::now().time_since_epoch()
+				).count()
+			)
+		);
+		jsUpdate.Set("elapsed", jsPosition);
 
 		// Capabilities
 		Napi::Object jsCaps = Napi::Object::New(env);

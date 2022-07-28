@@ -1,32 +1,40 @@
-export default class IPlayer {
-    constructor(callback: Function);
-    getUpdate(): Update|null;
-    Play(): void;
-    Pause(): void;
-    PlayPause(): void;
-    Stop(): void;
-    Next(): void;
-    Previous(): void;
-    Shuffle(): void;
-    Repeat(): void;
-    Seek(offset: number): void;
-    SeekPercentage(percentage: number): void;
-    GetPosition(): number;
-    SetPosition(position: number): void;
-    // @deprecated
-    GetVolume(): number;
-    // @deprecated
-    SetVolume(volume: number): number;
-}
+declare const PlayerImpl: Player;
+export default PlayerImpl;
 
-export type ArtData = {
+export declare type Player = {
+	constructor(callback: Function): Player;
+	getUpdate(): Promise<Update | null>;
+	Play(): void;
+	Pause(): void;
+	PlayPause(): void;
+	Stop(): void;
+	Next(): void;
+	Previous(): void;
+	Shuffle(): void;
+	Repeat(): void;
+	Seek(offset: number): void;
+	SeekPercentage(percentage: number): void;
+	GetPosition(): Position;
+	SetPosition(position: number): void;
+	// @deprecated
+	GetVolume(): number;
+	// @deprecated
+	SetVolume(volume: number): number;
+};
+
+export declare type Position = {
+	howMuch: number;
+	when: Date;
+};
+
+export declare type ArtData = {
 	data: Buffer;
 	type: string[];
 };
 
-export type Metadata = {
+export declare type Metadata = {
 	id: string;
-    title: string;
+	title: string;
 	artist: string;
 	artists: string[];
 	album: string;
@@ -36,7 +44,7 @@ export type Metadata = {
 	length: number;
 };
 
-export type Capabilities = {
+export declare type Capabilities = {
 	canControl: boolean;
 	canPlayPause: boolean;
 	canGoNext: boolean;
@@ -44,7 +52,7 @@ export type Capabilities = {
 	canSeek: boolean;
 };
 
-export type Update = {
+export declare type Update = {
 	provider: "WinPlayer";
 	metadata: Metadata;
 	capabilities: Capabilities;
@@ -52,7 +60,7 @@ export type Update = {
 	loop: string;
 	shuffle: boolean;
 	volume: number;
-	elapsed: number;
+	elapsed: Position;
 	app: string;
 	appName: string;
 };

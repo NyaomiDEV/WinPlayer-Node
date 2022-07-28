@@ -1,6 +1,8 @@
 #include "wrapper.h"
 #include "updateworker.h"
 
+#include <chrono>
+
 Napi::Object WrappedPlayer::Init(Napi::Env env, Napi::Object exports){
 	Napi::Function func = DefineClass(env, "Player", {
 		InstanceMethod("getUpdate", &WrappedPlayer::getUpdate),
@@ -108,7 +110,17 @@ Napi::Value WrappedPlayer::SeekPercentage(const Napi::CallbackInfo& info){
 
 Napi::Value WrappedPlayer::GetPosition(const Napi::CallbackInfo& info){
 	float position = this->_player.GetPosition();
-	return Napi::Number::New(info.Env(), position);
+	Napi::Object jsPosition = Napi::Object::New(info.Env());
+	jsPosition.Set("howMuch", Napi::Number::New(info.Env(), position));
+	jsPosition.Set("when",
+		Napi::Date::New(
+			info.Env(),
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::system_clock::now().time_since_epoch()
+			).count()
+		)
+	);
+	return jsPosition;
 }
 
 Napi::Value WrappedPlayer::SetPosition(const Napi::CallbackInfo& info){

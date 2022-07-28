@@ -1,2 +1,2 @@
-const Player = require("bindings")("winplayerbinding").Player;
-module.exports = Player;
+const PlayerImpl = require("bindings")("winplayerbinding").Player;
+module.exports = PlayerImpl;

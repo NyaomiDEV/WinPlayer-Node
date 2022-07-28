@@ -1,16 +1,15 @@
-const Player = require("./");
+const Player = require(".");
 
-/** @type {import("./").IPlayer} */
+/** @type {import(".").Player} */
 let player;
 
 async function onUpdate(){
     const update = await player.getUpdate();
-    console.log(require("util").inspect(update, false, null, true /* enable colors */));
-    await require("fs/promises").writeFile("test.png", update.metadata.artData?.data);
+    console.log(update);
 }
 
 player = new Player(onUpdate);
-
+console.log(player.GetPosition());
 
 /* (async()=>{
     while(1) await new Promise(r => setTimeout(()=>{
