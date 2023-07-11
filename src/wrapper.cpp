@@ -39,7 +39,7 @@ WrappedPlayer::WrappedPlayer(const Napi::CallbackInfo &info) : Napi::ObjectWrap<
 		info.Env(),
 		info[0].As<Napi::Function>(),
 		"Callback",
-		0,
+		1,
 		1
 	);
 	this->_player.setCallback([tsfn](){
