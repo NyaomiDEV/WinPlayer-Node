@@ -1,6 +1,6 @@
 {
   "name": "winplayer-node",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "WinPlayer for Node.js",
   "main": "index.js",
   "types": "index.d.ts",
