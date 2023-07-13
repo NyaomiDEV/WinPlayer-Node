@@ -10,7 +10,7 @@ class UpdateWorker : public Napi::AsyncWorker {
 			return info.Env().Undefined();
 		}
 
-		Napi::Reference<Napi::Function> const &getFakeCallback(Napi::Env const& env){
+		Napi::Reference<Napi::Function> const getFakeCallback(Napi::Env const& env){
 			static Napi::Reference<Napi::Function> cb = Napi::Reference<Napi::Function>::New(Napi::Function::New(env, noop), 1);
 			cb.SuppressDestruct();
 			return cb;
