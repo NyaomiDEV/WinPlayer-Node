@@ -197,7 +197,7 @@ void Player::setCallback(CallbackFn const callback){
 }
 
 concurrency::task<std::optional<Update>> Player::getUpdate(){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return {};
 
 	auto player = this->players[this->activePlayer.value()];
@@ -263,31 +263,31 @@ concurrency::task<std::optional<Update>> Player::getUpdate(){
 }
 
 void Player::Play(){
-	if(this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TryPlayAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TryPlayAsync());
 };
 
 void Player::Pause(){
-	if(!this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TryPauseAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TryPauseAsync());
 }
 
 void Player::PlayPause(){
-	if(!this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TryTogglePlayPauseAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TryTogglePlayPauseAsync());
 }
 
 void Player::Stop(){
-	if(!this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TryStopAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TryStopAsync());
 }
 
 void Player::Next(){
-	if(!this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TrySkipNextAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TrySkipNextAsync());
 }
 
 void Player::Previous(){
-	if(!this->activePlayer.has_value() || !this->players.empty()) FireAndForget(this->players[this->activePlayer.value()]->TrySkipPreviousAsync());
+	if(this->activePlayer.has_value() && this->players.contains(this->activePlayer.value())) FireAndForget(this->players[this->activePlayer.value()]->TrySkipPreviousAsync());
 }
 
 void Player::Shuffle(){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return;
 	
 	auto player = this->players[this->activePlayer.value()];
@@ -299,7 +299,7 @@ void Player::Shuffle(){
 }
 
 void Player::Repeat(){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return;
 
 	auto player = this->players[this->activePlayer.value()];
@@ -324,7 +324,7 @@ void Player::Repeat(){
 }
 
 void Player::Seek(int const offsetUs){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return;
 	
 	auto player = this->players[this->activePlayer.value()];
@@ -333,7 +333,7 @@ void Player::Seek(int const offsetUs){
 }
 
 void Player::SeekPercentage(float const percentage){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return;
 
 	auto player = this->players[this->activePlayer.value()];
@@ -342,7 +342,7 @@ void Player::SeekPercentage(float const percentage){
 }
 
 void Player::SetPosition(float const positionS){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return;
 
 	auto player = this->players[this->activePlayer.value()];
@@ -351,7 +351,7 @@ void Player::SetPosition(float const positionS){
 }
 
 float Player::GetPosition(){
-	if(!this->activePlayer.has_value() || this->players.empty())
+	if(!this->activePlayer.has_value() || !this->players.contains(this->activePlayer.value()))
 		return 0.0;
 
 	auto player = this->players[this->activePlayer.value()];
