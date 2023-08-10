@@ -38,9 +38,9 @@ export declare type Metadata = {
 	artist: string;
 	artists: string[];
 	album: string;
-	albumArtist: string;
-	albumArtists: string[];
-	artData: ArtData;
+	albumArtist?: string;
+	albumArtists?: string[];
+	artData?: ArtData;
 	length: number;
 };
 

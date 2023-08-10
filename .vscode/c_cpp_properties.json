@@ -3,7 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "C:\\Users\\Naomi Calabretta\\AppData\\Local\\node-gyp\\Cache\\17.1.0\\**",
+                "C:\\Users\\naomi\\AppData\\Local\\node-gyp\\Cache\\20.5.0\\**",
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/node_modules/node-addon-api/**"
             ],
