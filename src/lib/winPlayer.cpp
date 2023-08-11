@@ -132,6 +132,8 @@ concurrency::task<std::optional<Metadata>> Player::getMetadata(GlobalSystemMedia
 				winrt::Windows::Security::Cryptography::BinaryStringEncoding::Utf8
 			);
 			metadata.id = winrt::to_string(winrt::Windows::Security::Cryptography::CryptographicBuffer::EncodeToHexString(md5.HashData(idBuf)));
+		} else {
+			metadata.id = "";
 		}
 
 		auto thumbnail = info.Thumbnail();
@@ -198,7 +200,7 @@ void Player::setCallback(CallbackFn const callback){
 
 concurrency::task<std::optional<Update>> Player::getUpdate(){
 	if(!this->activePlayer.has_value() || this->players.find(this->activePlayer.value()) == this->players.end())
-		return {};
+		co_return {};
 
 	auto player = this->players[this->activePlayer.value()];
 	auto playbackInfo = player->GetPlaybackInfo();

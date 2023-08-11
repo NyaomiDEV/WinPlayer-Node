@@ -33,13 +33,13 @@ export declare type ArtData = {
 };
 
 export declare type Metadata = {
-	id: string;
+	id?: string;
 	title: string;
 	artist: string;
 	artists: string[];
 	album?: string;
 	albumArtist?: string;
-	albumArtists?: string[];
+	albumArtists: string[];
 	artData?: ArtData;
 	length: number;
 };
@@ -54,7 +54,7 @@ export declare type Capabilities = {
 
 export declare type Update = {
 	provider: "WinPlayer";
-	metadata: Metadata;
+	metadata?: Metadata;
 	capabilities: Capabilities;
 	status: string;
 	loop: string;

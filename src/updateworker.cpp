@@ -25,8 +25,8 @@ void UpdateWorker::OnOK() {
 		Napi::Object jsUpdate = Napi::Object::New(env);
 
 		jsUpdate.Set("provider", Napi::String::New(env, "WinPlayer"));
-		jsUpdate.Set("status", stringOrUndefined(env, currentUpdate->status));
-		jsUpdate.Set("loop", stringOrUndefined(env, currentUpdate->loop));
+		jsUpdate.Set("status", Napi::String::New(env, currentUpdate->status));
+		jsUpdate.Set("loop", Napi::String::New(env, currentUpdate->loop));
 		jsUpdate.Set("app", stringOrUndefined(env, currentUpdate->app));
 		jsUpdate.Set("appName", stringOrUndefined(env, currentUpdate->appName));
 		jsUpdate.Set("shuffle", Napi::Boolean::New(env, currentUpdate->shuffle));
@@ -54,11 +54,12 @@ void UpdateWorker::OnOK() {
 		jsUpdate.Set("capabilities", jsCaps);
 
 		// Metadata
-		Napi::Object jsMetadata = Napi::Object::New(env);
 		if (currentUpdate->metadata.has_value()){
+			Napi::Object jsMetadata = Napi::Object::New(env);
+
 			jsMetadata.Set("id", stringOrUndefined(env, currentUpdate->metadata->id));
-			jsMetadata.Set("title", stringOrUndefined(env, currentUpdate->metadata->title));
-			jsMetadata.Set("artist", stringOrUndefined(env, currentUpdate->metadata->artist));
+			jsMetadata.Set("title", Napi::String::New(env, currentUpdate->metadata->title));
+			jsMetadata.Set("artist", Napi::String::New(env, currentUpdate->metadata->artist));
 			jsMetadata.Set("album", stringOrUndefined(env, currentUpdate->metadata->album));
 			jsMetadata.Set("albumArtist", stringOrUndefined(env, currentUpdate->metadata->albumArtist));
 			jsMetadata.Set("length", Napi::Number::New(env, currentUpdate->metadata->length));
@@ -66,14 +67,12 @@ void UpdateWorker::OnOK() {
  			Napi::Array jsArtists = Napi::Array::New(env),
 						jsAlbumArtists = Napi::Array::New(env);
 			for (int i = 0; i < currentUpdate->metadata->artists.size(); i++){
-				auto value = stringOrUndefined(env, currentUpdate->metadata->artists[i]);
-				if (value != env.Undefined())
-					jsArtists.Set(i, value);
+				if (currentUpdate->metadata->artists[i].size() > 0)
+					jsArtists.Set(i, currentUpdate->metadata->artists[i]);
 			}
 			for (int i = 0; i < currentUpdate->metadata->albumArtists.size(); i++){
-				auto value = stringOrUndefined(env, currentUpdate->metadata->albumArtists[i]);
-				if (value != env.Undefined())
-					jsAlbumArtists.Set(i, value);
+				if (currentUpdate->metadata->albumArtists[i].size() > 0)
+					jsAlbumArtists.Set(i, currentUpdate->metadata->albumArtists[i]);
 			}
 			jsMetadata.Set("artists", jsArtists);
 			jsMetadata.Set("albumArtists", jsAlbumArtists);
@@ -90,19 +89,11 @@ void UpdateWorker::OnOK() {
 				jsArtData.Set("data", buf);
 
 				jsMetadata.Set("artData", jsArtData);
+
+				jsUpdate.Set("metadata", jsMetadata);
 			}
-		}else{
-			jsMetadata.Set("id", env.Undefined());
-			jsMetadata.Set("title", env.Undefined());
-			jsMetadata.Set("artist", env.Undefined());
-			jsMetadata.Set("album", env.Undefined());
-			jsMetadata.Set("albumArtist", env.Undefined());
-			jsMetadata.Set("length", env.Undefined());
-			jsMetadata.Set("artists", env.Undefined());
-			jsMetadata.Set("albumArtists", env.Undefined());
 		}
 
-		jsUpdate.Set("metadata", jsMetadata);
 		promise.Resolve(jsUpdate);
 		return;
 	}
