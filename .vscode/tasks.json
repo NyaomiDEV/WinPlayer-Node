@@ -3,11 +3,11 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "build:dev",
+			"script": "rebuild:dev",
 			"group": "build",
 			"problemMatcher": [],
-			"label": "npm: build:dev",
-			"detail": "node-gyp build --debug"
+			"label": "npm: rebuild:dev",
+			"detail": "node-gyp rebuild --debug"
 		}
 	]
 }

@@ -8,12 +8,13 @@
   "private": true,
   "scripts": {
     "start": "node test.js",
-    "build:dev": "node-gyp build --debug",
-    "build": "node-gyp build",
-    "rebuild:dev": "node-gyp rebuild --debug",
-    "rebuild": "node-gyp rebuild",
+    "build:dev": "node-gyp build -j max --debug",
+    "build": "node-gyp build -j max",
+    "rebuild:dev": "node-gyp rebuild -j max --debug",
+    "rebuild": "node-gyp rebuild -j max",
     "clean": "node-gyp clean",
-    "install": "node-gyp rebuild"
+    "install": "node-gyp rebuild",
+    "test": "yarn rebuild:dev && node test.js"
   },
   "dependencies": {
     "bindings": "^1.5.0",

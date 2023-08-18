@@ -1,6 +1,6 @@
 const Player = require(".");
 
-/** @type {import(".").Player} */
+/** @type {import(".").default} */
 let player;
 
 async function onUpdate(){

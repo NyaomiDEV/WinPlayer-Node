@@ -1,5 +1,4 @@
-declare const PlayerImpl: Player;
-export default PlayerImpl;
+export default Player;
 
 export declare interface Player {
 	new(callback: Function): Player;
