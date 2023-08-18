@@ -25,7 +25,6 @@ void Player::updatePlayers(){
 	this->playbackInfoChangedHandlers.clear();
 	this->mediaPropertiesChangedHandlers.clear();
 	this->timelinePropertiesChangedHandlers.clear();
-	if (this->callback.has_value()) (this->callback.value())();
 
 	auto sessions = this->sessionManager->GetSessions();
 	for(uint32_t i = 0; i < sessions.Size(); i++){
@@ -33,6 +32,8 @@ void Player::updatePlayers(){
 		auto AUMID = winrt::to_string(player.SourceAppUserModelId());
 		this->addPlayer(AUMID, player);
 	}
+
+	if (this->callback.has_value()) (this->callback.value())();
 }
 
 concurrency::task<std::string> Player::getPlayerName(GlobalSystemMediaTransportControlsSession player){
