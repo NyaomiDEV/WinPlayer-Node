@@ -9,11 +9,11 @@
   "scripts": {
     "start": "node test.js",
     "build:dev": "node-gyp build -j max --debug",
-    "build": "node-gyp build -j max",
+    "build": "node-gyp build -j max --release",
     "rebuild:dev": "node-gyp rebuild -j max --debug",
-    "rebuild": "node-gyp rebuild -j max",
+    "rebuild": "node-gyp rebuild -j max --release",
     "clean": "node-gyp clean",
-    "install": "node-gyp rebuild",
+    "install": "yarn rebuild",
     "test": "yarn rebuild:dev && node test.js"
   },
   "dependencies": {
