@@ -4,13 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.28"
 
 [dependencies.windows]
 version = "0.51.1"
 features = [
     "ApplicationModel",
+    "Foundation",
     "Foundation_Collections",
     "Graphics_Imaging",
+    "Media_Control",
     "Security_Cryptography_Core",
     "Storage_Streams",
     "System"
