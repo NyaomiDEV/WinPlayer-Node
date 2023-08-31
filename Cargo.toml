@@ -1,0 +1,17 @@
+[package]
+name = "helo-nao"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dependencies.windows]
+version = "0.51.1"
+features = [
+    "ApplicationModel",
+    "Foundation_Collections",
+    "Graphics_Imaging",
+    "Security_Cryptography_Core",
+    "Storage_Streams",
+    "System"
+]
