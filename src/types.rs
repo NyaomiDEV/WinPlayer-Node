@@ -1,16 +1,18 @@
+use chrono::{DateTime, Utc};
+
 pub struct ArtData {
     pub data: Vec<u8>,
     pub mimetype: Vec<String>,
 }
 
 pub struct Metadata {
-    pub album: String,
-    pub album_artist: String,
-    pub album_artists: Vec<String>,
+    pub album: Option<String>,
+    pub album_artist: Option<String>,
+    pub album_artists: Option<Vec<String>>,
     pub artist: String,
     pub artists: Vec<String>,
     pub art_data: Option<ArtData>,
-    pub id: String,
+    pub id: Option<String>,
     pub length: f64,
     pub title: String,
 }
@@ -23,6 +25,11 @@ pub struct Capabilities {
     pub can_seek: bool,
 }
 
+pub struct Position {
+    pub how_much: f64,
+    pub when: DateTime<Utc>
+}
+
 pub struct Update {
     pub metadata: Option<Metadata>,
     pub capabilities: Capabilities,
@@ -30,7 +37,7 @@ pub struct Update {
     pub is_loop: String,
     pub shuffle: bool,
     pub volume: f64,      // tanto sta a -1 lmao
-    pub elapsed: f64,
-    pub app: String,      // App User Model ID
-    pub app_name: String, // Nome per hoomans
+    pub elapsed: Position,
+    pub app: Option<String>,      // App User Model ID
+    pub app_name: Option<String>, // Nome per hoomans
 }
