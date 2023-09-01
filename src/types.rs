@@ -4,15 +4,15 @@ pub struct ArtData {
 }
 
 pub struct Metadata {
-    pub id: String,
-    pub title: String,
-    pub artist: String,
-    pub artists: Vec<String>,
     pub album: String,
     pub album_artist: String,
     pub album_artists: Vec<String>,
-    pub art_data: ArtData,
+    pub artist: String,
+    pub artists: Vec<String>,
+    pub art_data: Option<ArtData>,
+    pub id: String,
     pub length: f64,
+    pub title: String,
 }
 
 pub struct Capabilities {

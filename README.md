@@ -2,14 +2,15 @@
 
 ## Da fare
 - [ ] Porting di tutte le funzioni a Rust
-  - [x] addPlayer(std::string const AUMID, GSMTCSession player) -> Non necessario per questo pattern?
-  - [x] removePlayer(std::string const AUMID) -> Non necessario per questo pattern?
+  - [x] addPlayer(std::string const AUMID, GSMTCSession player) -> Non necessario per questo pattern
+  - [x] removePlayer(std::string const AUMID) -> Non necessario per questo pattern
   - [x] updatePlayers() -> update_active_session()
   - [/] Player() -> pub new() + pub run()
   - [/] getPlayerName(GSMTCSession player) -> get_session_player_name(session: GSMTCSession)
   - [ ] registerPlayerEvents(std::string const AUMID, GSMTCSession player) -> register_session_events(session: GSMTCSession)
-  - [ ] getMetadata(GSMTCSession player) -> get_session_metadata(session: GSMTCSession)
+  - [/] getMetadata(GSMTCSession player) -> get_session_metadata(session: GSMTCSession)
   - [x] getCapabilities(GSMTCSession player) -> get_session_capabilities(session: GSMTCSession)
+  - [/] getUpdate() -> get_session_status(session: GSMTCSession) + pub get_active_session_status()
   - [ ] public setCallback() -> Forse è necessario per mandare robe al JS context? Possiamo dispatchare eventi?
   - [x] public Play() -> play()
   - [x] public Pause() -> pause()
