@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use chrono;
 
 use windows::{
-    core::HSTRING,
+    core::{Error, HSTRING},
     ApplicationModel, Foundation,
-    Foundation::{Collections, TypedEventHandler},
+    Foundation::{TypedEventHandler},
     Graphics::Imaging,
     Media::Control::{
         GlobalSystemMediaTransportControlsSession,
@@ -14,13 +14,72 @@ use windows::{
     },
     Media::MediaPlaybackAutoRepeatMode,
     Security::Cryptography::{BinaryStringEncoding, Core, CryptographicBuffer},
-    Storage::Streams,
+    Storage::Streams::{self, DataReader},
     System,
 };
 
-use crate::types::{Capabilities, Metadata, Update};
+use crate::types::{ArtData, Capabilities, Metadata, Update};
 
-fn get_session_capabilities(session: GlobalSystemMediaTransportControlsSession) -> Capabilities {
+async fn get_session_player_name_for_user(
+    session: &GlobalSystemMediaTransportControlsSession,
+) -> Result<String, Error> {
+    let mut player_name = session.SourceAppUserModelId()?;
+    let user = System::User::FindAllAsync()?.await?.GetAt(0)?;
+
+    player_name = ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(&user, &player_name)?
+        .DisplayInfo()?
+        .DisplayName()?;
+
+    if session.SourceAppUserModelId().unwrap() == player_name
+        && player_name.to_string().ends_with(".exe")
+    {
+        player_name = HSTRING::from(
+            player_name
+                .to_string()
+                .strip_suffix(".exe")
+                .unwrap_or_default(),
+        );
+    }
+
+    Ok(player_name.to_string())
+}
+
+async fn get_session_player_name_global(
+    session: &GlobalSystemMediaTransportControlsSession,
+) -> Result<String, Error> {
+    let mut player_name = session.SourceAppUserModelId()?;
+
+    player_name = ApplicationModel::AppInfo::GetFromAppUserModelId(&player_name)?
+        .DisplayInfo()?
+        .DisplayName()?;
+
+    if session.SourceAppUserModelId().unwrap() == player_name
+        && player_name.to_string().ends_with(".exe")
+    {
+        player_name = HSTRING::from(
+            player_name
+                .to_string()
+                .strip_suffix(".exe")
+                .unwrap_or_default(),
+        );
+    }
+
+    Ok(player_name.to_string())
+}
+
+async fn get_session_player_name(
+    session: &GlobalSystemMediaTransportControlsSession,
+) -> Result<String, Error> {
+    match get_session_player_name_for_user(&session).await {
+        Ok(r) => Ok(r),
+        Err(_) => match get_session_player_name_global(&session).await {
+            Ok(r) => Ok(r),
+            Err(e) => Err(e),
+        },
+    }
+}
+
+fn get_session_capabilities(session: &GlobalSystemMediaTransportControlsSession) -> Capabilities {
     let controls = session.GetPlaybackInfo().unwrap().Controls().unwrap();
 
     let mut capabilities = Capabilities {
@@ -47,7 +106,7 @@ fn get_session_capabilities(session: GlobalSystemMediaTransportControlsSession) 
 }
 
 async fn get_session_metadata(
-    session: GlobalSystemMediaTransportControlsSession,
+    session: &GlobalSystemMediaTransportControlsSession,
 ) -> Option<Metadata> {
     let timeline_properties = session.GetTimelineProperties().unwrap();
     match session.TryGetMediaPropertiesAsync().unwrap().await {
@@ -86,41 +145,92 @@ async fn get_session_metadata(
                         .to_string();
             }
 
-            /* C++ da portare
-            auto thumbnail = info.Thumbnail();
-            if (thumbnail){
-            auto stream = co_await thumbnail.OpenReadAsync();
-            if (stream.CanRead() && stream.Size() > 0){
-                winrt::Windows::Graphics::Imaging::BitmapDecoder decoder = co_await winrt::Windows::Graphics::Imaging::BitmapDecoder::CreateAsync(stream);
-                auto softwareBitmap = co_await decoder.GetSoftwareBitmapAsync();
+            let thumbnail = info.Thumbnail();
+            if thumbnail.is_ok() {
+                let stream = thumbnail.unwrap().OpenReadAsync().unwrap().await.unwrap();
+                if stream.CanRead().unwrap() && stream.Size().unwrap() > 0 {
+                    let decoder = Imaging::BitmapDecoder::CreateAsync(&stream)
+                        .unwrap()
+                        .await
+                        .unwrap();
 
-                auto pngstream = winrt::Windows::Storage::Streams::InMemoryRandomAccessStream::InMemoryRandomAccessStream();
-                auto encoder = co_await winrt::Windows::Graphics::Imaging::BitmapEncoder::CreateAsync(
-                    winrt::Windows::Graphics::Imaging::BitmapEncoder::PngEncoderId(),
-                    pngstream
-                );
-                encoder.SetSoftwareBitmap(softwareBitmap);
-                co_await encoder.FlushAsync();
+                    let pngstream = Streams::InMemoryRandomAccessStream::new().unwrap();
+                    let encoder = Imaging::BitmapEncoder::CreateAsync(
+                        Imaging::BitmapEncoder::PngEncoderId().unwrap(),
+                        &pngstream,
+                    )
+                    .unwrap()
+                    .await
+                    .unwrap();
 
-                 winrt::Windows::Storage::Streams::IBuffer buffer = winrt::Windows::Storage::Streams::Buffer(pngstream.Size());
-                buffer = co_await pngstream.ReadAsync(buffer, pngstream.Size(), winrt::Windows::Storage::Streams::InputStreamOptions::None);
-                co_await pngstream.FlushAsync();
-                pngstream.Close();
+                    let software_bitmap = decoder.GetSoftwareBitmapAsync().unwrap().await.unwrap();
+                    encoder.SetSoftwareBitmap(&software_bitmap);
 
-                auto data = buffer.data();
+                    encoder.FlushAsync().unwrap().await;
 
-                metadata.artData.data = std::vector<uint8_t>(&data[0], &data[buffer.Length() - 1]);
-                metadata.artData.type.push_back("image/png");
+                    let buffer =
+                        Streams::Buffer::Create(pngstream.Size().unwrap().try_into().unwrap())
+                            .unwrap();
+                    let result_buffer = pngstream
+                        .ReadAsync(
+                            &buffer,
+                            pngstream.Size().unwrap().try_into().unwrap(),
+                            Streams::InputStreamOptions::None,
+                        )
+                        .unwrap()
+                        .await
+                        .unwrap();
+                    pngstream.FlushAsync().unwrap().await;
+                    pngstream.Close();
+
+                    let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
+                    let mut data = Vec::with_capacity(result_buffer.Length().unwrap() as usize);
+                    data_reader.ReadBytes(&mut data);
+
+                    metadata.art_data = Some(ArtData {
+                        data,
+                        mimetype: vec![String::from("image/png")],
+                    });
+                }
             }
-            */
+
             Some(metadata)
         }
         Err(_) => None,
     }
 }
 
-fn get_session_status(session: GlobalSystemMediaTransportControlsSession) -> Result<Update, &str> {
-    Err("Da implementare")
+async fn get_session_status(
+    session: GlobalSystemMediaTransportControlsSession,
+) -> Result<Update, Error> {
+    let playback_info = session.GetPlaybackInfo()?;
+    let timeline_properties = session.GetTimelineProperties()?;
+
+    Ok(Update {
+        metadata: get_session_metadata(&session).await,
+        capabilities: get_session_capabilities(&session),
+        status: match playback_info.PlaybackStatus()? {
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+                String::from("Playing")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
+                String::from("Paused")
+            }
+            _ => String::from("Stopped"),
+        },
+        is_loop: match playback_info.AutoRepeatMode()?.Value()? {
+            MediaPlaybackAutoRepeatMode::List => String::from("List"),
+            MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
+            _ => String::from("None"),
+        },
+        shuffle: playback_info.IsShuffleActive()?.Value().unwrap_or(false),
+        volume: -1f64,
+        elapsed: (timeline_properties.Position()?.Duration
+            - timeline_properties.StartTime()?.Duration) as f64
+            / 1000f64,
+        app: session.SourceAppUserModelId()?.to_string(),
+        app_name: get_session_player_name(&session).await?,
+    })
 }
 
 struct Player {
@@ -168,34 +278,6 @@ impl Player {
         rc_self.lock().unwrap().update_active_session(preferred);
     }
 
-    async fn get_session_player_name(
-        session: GlobalSystemMediaTransportControlsSession,
-    ) -> Result<String, &str> {
-        // Tecnicamente va dato un Err a ogni unwrap fallito. Non so che pattern usare.
-        let mut player_name = session.SourceAppUserModelId().unwrap();
-        let user = System::User::FindAllAsync()
-            .unwrap()
-            .await
-            .unwrap()
-            .GetAt(0)
-            .unwrap();
-
-        player_name = ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(&user, &player_name)
-            .unwrap()
-            .DisplayInfo()
-            .unwrap()
-            .DisplayName()
-            .unwrap();
-
-        if session.SourceAppUserModelId().unwrap() == player_name
-            && player_name.to_string().ends_with(".exe")
-        {
-            player_name = HSTRING::from(player_name.to_string().strip_suffix(".exe").unwrap());
-        }
-
-        Ok(player_name.to_string()) // ok come torniamo Err a ogni expect?
-    }
-
     fn get_session(&self) -> Option<GlobalSystemMediaTransportControlsSession> {
         match self.session_manager.GetSessions() {
             Ok(ses) => {
@@ -227,10 +309,13 @@ impl Player {
         }
     }
 
-    pub fn get_active_session_status(&self) -> Result<Update, &str> {
+    pub async fn get_active_session_status(&self) -> Result<Update, &str> {
         match self.get_session() {
             None => Err("No active session"),
-            Some(session) => get_session_status(session),
+            Some(session) => match get_session_status(session).await {
+                Ok(res) => Ok(res),
+                Err(e) => Err("Cannot get active session status"),
+            },
         }
     }
 
