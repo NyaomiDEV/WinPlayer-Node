@@ -43,7 +43,7 @@ pub fn compute_position(
             GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
         };
 
-        let when: DateTime<Utc> = {
+        let mut when: DateTime<Utc> = {
             let mut timestamp = 0;
             if let Ok(last_updated_time) = timeline_properties.LastUpdatedTime() {
                 timestamp = shitty_windows_epoch_to_actually_usable_unix_timestamp(
@@ -79,9 +79,10 @@ pub fn compute_position(
         if account_for_time_skew
             && playback_status == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
         {
-            let time_from_last_update =
-                chrono::offset::Utc::now().timestamp_millis() - when.timestamp_millis();
+            let now = Utc::now();
+            let time_from_last_update = now.timestamp_millis() - when.timestamp_millis();
             position += time_from_last_update as f64 / 1000f64;
+            when = now;
         }
 
         return Some(Position {
