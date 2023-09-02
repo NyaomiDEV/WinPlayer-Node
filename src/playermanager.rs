@@ -13,26 +13,30 @@ use windows::{
 
 use crate::player::Player;
 
-struct PlayerManager {
+pub struct PlayerManager {
     denylist: Option<Vec<String>>,
     session_manager: GlobalSystemMediaTransportControlsSessionManager,
     active_player_key: Option<String>, // che volevo storare una ref ma mi rompe il cazzo con le lifetimes
+    system_player_key: Option<String>,
     players: HashMap<String, Player>,
 }
 
 impl PlayerManager {
-    pub async fn new(denylist: Option<Vec<String>>) -> Self {
-        let session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
-            .expect("The session manager is kil")
-            .await
-            .expect("The session manager is kil 2");
+    pub async fn new(denylist: Option<Vec<String>>) -> Option<Self> {
+        if let Ok(_binding) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+            if let Ok(session_manager) = _binding.await {
+                // Registra eventi nel session manager QUI
 
-        PlayerManager {
-            denylist,
-            session_manager,
-            active_player_key: None,
-            players: HashMap::new(),
+                return Some(PlayerManager {
+                    denylist,
+                    session_manager,
+                    active_player_key: None,
+                    system_player_key: None,
+                    players: HashMap::new(),
+                });
+            }
         }
+        None
     }
 
     pub fn run(self) {
@@ -67,11 +71,33 @@ impl PlayerManager {
             .update_sessions(preferred.as_ref(), denylist.as_ref());
     }
 
-    fn get_session(&self) -> Option<&Player> {
+    pub fn get_session(&self) -> Option<&Player> {
         if let Some(player_key) = &self.active_player_key {
             return self.players.get(player_key);
         }
         None
+    }
+
+    pub fn get_system_session(&self) -> Option<&Player> {
+        if let Some(player_key) = &self.system_player_key {
+            return self.players.get(player_key);
+        }
+        None
+    }
+
+    fn update_system_session(&mut self) {
+        if let Ok(session) = self.session_manager.GetCurrentSession() {
+            self.system_player_key = None;
+
+            if let Ok(aumid) = session.SourceAppUserModelId() {
+                let _aumid = aumid.to_string();
+                if _aumid.is_empty() {
+                    return;
+                }
+
+                self.system_player_key = Some(_aumid);
+            }
+        }
     }
 
     fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
@@ -100,9 +126,9 @@ impl PlayerManager {
 
                     let is_preferred = 'rt: {
                         if let Some(result) = preferred {
-                                if result.eq(&_aumid) {
-                                    break 'rt true;
-                                }
+                            if result.eq(&_aumid) {
+                                break 'rt true;
+                            }
                         }
                         false
                     };
@@ -122,5 +148,11 @@ impl PlayerManager {
                 }
             }
         }
+    }
+}
+
+impl Drop for PlayerManager {
+    fn drop(&mut self) {
+        // Droppare gli eventi del session manager qui, suppongo?
     }
 }
