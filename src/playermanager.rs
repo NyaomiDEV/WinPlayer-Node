@@ -1,14 +1,23 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use windows::{Media::Control::{GlobalSystemMediaTransportControlsSessionManager, GlobalSystemMediaTransportControlsSessionPlaybackStatus}, Foundation::TypedEventHandler};
+use windows::{
+    Foundation::TypedEventHandler,
+    Media::Control::{
+        GlobalSystemMediaTransportControlsSessionManager,
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+    },
+};
 
 use crate::player::Player;
 
 struct PlayerManager {
     denylist: Option<Vec<String>>,
     session_manager: GlobalSystemMediaTransportControlsSessionManager,
-    active_player: Option<&Player>, // cm si fixa sks
-	players: HashMap<String, Player>,
+    active_player_key: Option<String>, // che volevo storare una ref ma mi rompe il cazzo con le lifetimes
+    players: HashMap<String, Player>,
 }
 
 impl PlayerManager {
@@ -21,8 +30,8 @@ impl PlayerManager {
         PlayerManager {
             denylist,
             session_manager,
-            active_player: None,
-			players: HashMap::new(),
+            active_player_key: None,
+            players: HashMap::new(),
         }
     }
 
@@ -37,9 +46,9 @@ impl PlayerManager {
                 Ok({
                     let mut binding = s.lock();
                     let s = binding.as_mut().unwrap();
-                    let preferred = s.active_player;
+                    let preferred = s.active_player_key.clone();
                     let denylist = s.denylist.clone();
-                    s.update_sessions(preferred, denylist.as_ref());
+                    s.update_sessions(preferred.as_ref(), denylist.as_ref());
                 })
             }
         });
@@ -50,32 +59,31 @@ impl PlayerManager {
             .session_manager
             .SessionsChanged(&handler);
 
-        let preferred = rc_self.lock().unwrap().active_player;
+        let preferred = rc_self.lock().unwrap().active_player_key.clone();
         let denylist = rc_self.lock().unwrap().denylist.clone();
         rc_self
             .lock()
             .unwrap()
-            .update_sessions(preferred, denylist.as_ref());
+            .update_sessions(preferred.as_ref(), denylist.as_ref());
     }
 
     fn get_session(&self) -> Option<&Player> {
-        return self.active_player;
+        if let Some(player_key) = self.active_player_key {
+            return self.players.get(&player_key);
+        }
+        None
     }
 
-    fn update_sessions(
-        &mut self,
-        preferred: Option<&Player>,
-        denylist: Option<&Vec<String>>,
-    ) {
+    fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
-            self.active_player = None;
+            self.active_player_key = None;
 
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();
-					if _aumid.is_empty() {
-						continue;
-					}
+                    if _aumid.is_empty() {
+                        continue;
+                    }
 
                     if denylist.is_some_and(|x| x.contains(&_aumid)) {
                         continue;
@@ -92,29 +100,27 @@ impl PlayerManager {
 
                     let is_preferred = 'rt: {
                         if let Some(result) = preferred {
-                            if session == result.session {
-                                break 'rt true;
-                            }
+                                if result.eq(&_aumid) {
+                                    break 'rt true;
+                                }
                         }
                         false
                     };
-					
-					if ! self.players.contains_key(&_aumid) {
-						let player = Player::new(session);
-						self.players.insert(_aumid, player);
-					}
 
-					let player_ref = self.players.get(&_aumid).unwrap();
+                    if !self.players.contains_key(&_aumid) {
+                        let player = Player::new(session);
+                        self.players.insert(_aumid.clone(), player);
+                    }
 
                     if is_preferred
                         || playback_status
                             == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
                     {
-                        self.active_player = Some(player_ref);
+                        self.active_player_key = Some(_aumid);
                         break;
                     }
                 }
             }
         }
-    }	
+    }
 }
