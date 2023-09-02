@@ -200,11 +200,11 @@ impl Player {
         false
     }
 
-    pub async fn get_position(&self) -> Option<Position> {
+    pub async fn get_position(&self, wants_current_position: bool) -> Option<Position> {
         return compute_position(
             self.session.GetTimelineProperties().ok().as_ref(),
             self.session.GetPlaybackInfo().ok().as_ref(),
-            true,
+            wants_current_position,
         );
     }
 }
