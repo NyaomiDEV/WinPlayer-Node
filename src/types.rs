@@ -37,7 +37,7 @@ pub struct Update {
     pub is_loop: String,
     pub shuffle: bool,
     pub volume: f64,      // tanto sta a -1 lmao
-    pub elapsed: Position,
+    pub elapsed: Option<Position>,
     pub app: Option<String>,      // App User Model ID
     pub app_name: Option<String>, // Nome per hoomans
 }
