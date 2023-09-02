@@ -1,3 +1,4 @@
+mod playermanager;
 mod player;
 mod util;
 mod types;

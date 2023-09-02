@@ -151,7 +151,7 @@ pub async fn get_session_player_name(
     }
 }
 
-fn get_session_capabilities(session: &GlobalSystemMediaTransportControlsSession) -> Capabilities {
+pub fn get_session_capabilities(session: &GlobalSystemMediaTransportControlsSession) -> Capabilities {
     let controls = session.GetPlaybackInfo().unwrap().Controls().unwrap();
 
     let mut capabilities = Capabilities {
@@ -177,7 +177,7 @@ fn get_session_capabilities(session: &GlobalSystemMediaTransportControlsSession)
     capabilities
 }
 
-async fn get_session_metadata(
+pub async fn get_session_metadata(
     session: &GlobalSystemMediaTransportControlsSession,
 ) -> Option<Metadata> {
     let timeline_properties = session.GetTimelineProperties().unwrap();
@@ -277,74 +277,5 @@ async fn get_session_metadata(
             Some(metadata)
         }
         Err(_) => None,
-    }
-}
-
-pub async fn get_session_status(session: GlobalSystemMediaTransportControlsSession) -> Update {
-    let playback_info = session.GetPlaybackInfo().ok();
-    let timeline_properties = session.GetTimelineProperties().ok();
-
-    Update {
-        metadata: get_session_metadata(&session).await,
-        capabilities: get_session_capabilities(&session),
-        status: 'rt: {
-            if playback_info.is_none() {
-                break 'rt String::from("Stopped");
-            }
-            let _status = playback_info.as_ref().unwrap().PlaybackStatus().ok();
-            match _status.unwrap() {
-                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
-                    String::from("Playing")
-                }
-                GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
-                    String::from("Paused")
-                }
-                _ => String::from("Stopped"),
-            }
-        },
-        is_loop: 'rt: {
-            if playback_info.is_none() {
-                break 'rt String::from("None");
-            }
-            let _mode = playback_info.as_ref().unwrap().AutoRepeatMode().ok();
-            if _mode.is_none() {
-                break 'rt String::from("None");
-            }
-            match _mode
-                .unwrap()
-                .Value()
-                .unwrap_or(MediaPlaybackAutoRepeatMode::None)
-            {
-                MediaPlaybackAutoRepeatMode::List => String::from("List"),
-                MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
-                _ => String::from("None"),
-            }
-        },
-        shuffle: 'rt: {
-            if playback_info.is_none() {
-                break 'rt false;
-            }
-            let _shuffle = playback_info.as_ref().unwrap().IsShuffleActive().ok();
-            if _shuffle.is_none() {
-                break 'rt false;
-            }
-            _shuffle.unwrap().Value().unwrap_or(false)
-        },
-        volume: -1f64,
-        elapsed: compute_position(timeline_properties.as_ref(), playback_info.as_ref(), false),
-        app: 'rt: {
-            let aumid = session.SourceAppUserModelId().ok();
-            if aumid.is_none() {
-                break 'rt None::<String>;
-            }
-            Some(aumid.unwrap().to_string())
-        },
-        app_name: 'rt: {
-            let app_name = get_session_player_name(&session).await.ok();
-            if app_name.is_none() {
-                break 'rt None::<String>;
-            }
-            Some(app_name.unwrap())
-        },
     }
 }
