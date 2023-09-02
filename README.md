@@ -18,12 +18,12 @@
   - [x] public Stop() -> stop()
   - [x] public Next() -> next()
   - [x] public Previous() -> previous()
-  - [/] public Shuffle() -> shuffle()
-  - [/] public Repeat() -> repeat()
-  - [/] public Seek(int const offsetUs) -> seek(offset_us: i64)
-  - [/] public SeekPercentage(float const percentage) -> seek_percentage(percentage: f64)
-  - [/] public GetPosition() -> get_position()
-  - [/] public SetPosition(float const positionS) -> set_position(position_s: f64)
+  - [x] public Shuffle() -> shuffle()
+  - [x] public Repeat() -> repeat()
+  - [x] public Seek(int const offsetUs) -> seek(offset_us: i64)
+  - [x] public SeekPercentage(float const percentage) -> seek_percentage(percentage: f64)
+  - [x] public GetPosition() -> get_position()
+  - [x] public SetPosition(float const positionS) -> set_position(position_s: f64)
 - [ ] Fixare i bug ovvii
 - [ ] Implementare una glue per Node (NEON o Napi-rs?)
 - [ ] Scrivere test?

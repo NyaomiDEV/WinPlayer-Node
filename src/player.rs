@@ -1,7 +1,4 @@
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-
-use chrono::{DateTime, TimeZone, Utc};
 
 use windows::{
     Foundation::TypedEventHandler,
@@ -15,7 +12,9 @@ use windows::{
 
 use crate::types::{Position, Update};
 
-use crate::util::{get_session_status, shitty_windows_epoch_to_actually_usable_unix_timestamp};
+use crate::util::{
+    compute_position, get_session_status,
+};
 
 struct Player {
     session_manager: GlobalSystemMediaTransportControlsSessionManager,
@@ -50,7 +49,7 @@ impl Player {
                     let s = binding.as_mut().unwrap();
                     let preferred = s.active_player.clone();
                     let denylist = s.denylist.clone();
-                    s.update_active_session(preferred.as_ref(), denylist.as_ref());
+                    s.update_sessions(preferred.as_ref(), denylist.as_ref());
                 })
             }
         });
@@ -66,7 +65,7 @@ impl Player {
         rc_self
             .lock()
             .unwrap()
-            .update_active_session(preferred.as_ref(), denylist.as_ref());
+            .update_sessions(preferred.as_ref(), denylist.as_ref());
     }
 
     fn get_session(&self) -> Option<GlobalSystemMediaTransportControlsSession> {
@@ -85,7 +84,7 @@ impl Player {
         None
     }
 
-    fn update_active_session(
+    fn update_sessions(
         &mut self,
         preferred: Option<&String>,
         denylist: Option<&Vec<String>>,
@@ -99,6 +98,10 @@ impl Player {
                     if denylist.is_some_and(|x| x.contains(&_aumid)) {
                         continue;
                     }
+
+                    // Questo player viene preso in considerazione, bisogna registrare gli eventi
+                    // this.register_session_events(session)
+                    // Bisogna conservarne l'AUMID in un vettore
 
                     let playback_status = 'rt: {
                         if let Ok(playback_info) = session.GetPlaybackInfo() {
@@ -127,6 +130,13 @@ impl Player {
                     }
                 }
             }
+
+            // Qui bisognerebbe iterare sugli AUMID ancora presenti nel vettore
+            // e deregistrare tutti gli eventi che sono stati registrati su sessioni ormai perse (non presenti).
+            // Ma possiamo revocare gli handler su una sessione che è persa?
+            // Dovremmo "salvarci" i puntatori alle sessioni su una HashMap stile vecchio progetto?
+            // Cosa prevede Windows-RS?
+            // Ad esempio su C++/WinRT sta un token "winrt::auto_revoke_t" ma non so qua
         }
     }
 
@@ -266,62 +276,11 @@ impl Player {
 
     pub async fn get_position(&self) -> Option<Position> {
         if let Some(session) = self.get_session() {
-            if let Ok(timeline_properties) = session.GetTimelineProperties() {
-                let playback_status = 'rt: {
-                    if let Ok(playback_info) = session.GetPlaybackInfo() {
-                        if let Ok(playback_status) = playback_info.PlaybackStatus() {
-                            break 'rt playback_status;
-                        }
-                    }
-                    GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
-                };
-
-                let when: DateTime<Utc> = {
-                    let mut timestamp = 0;
-                    if let Ok(last_updated_time) = timeline_properties.LastUpdatedTime() {
-                        timestamp = shitty_windows_epoch_to_actually_usable_unix_timestamp(
-                            last_updated_time.UniversalTime,
-                        );
-                    }
-                    Utc.timestamp_millis_opt(timestamp).unwrap()
-                };
-
-                let end_time: f64 = 'rt: {
-                    if let Ok(_end_time) = timeline_properties.EndTime() {
-                        let _duration: Duration = _end_time.into();
-                        break 'rt _duration.as_secs_f64();
-                    }
-                    0f64
-                };
-
-                let mut position: f64 = 'rt: {
-                    if let Ok(_position) = timeline_properties.Position() {
-                        if let Ok(_start_time) = timeline_properties.StartTime() {
-                            let _duration: Duration = _position.into();
-                            let _start_duration: Duration = _start_time.into();
-                            break 'rt _duration.as_secs_f64() - _start_duration.as_secs_f64();
-                        }
-                    }
-                    0f64
-                };
-
-                if end_time == 0f64 {
-                    return None;
-                }
-
-                if playback_status
-                    == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
-                {
-                    let time_from_last_update =
-                        chrono::offset::Utc::now().timestamp_millis() - when.timestamp_millis();
-                    position += time_from_last_update as f64 / 1000f64;
-                }
-
-                return Some(Position {
-                    how_much: position,
-                    when,
-                });
-            }
+            return compute_position(
+                session.GetTimelineProperties().ok().as_ref(),
+                session.GetPlaybackInfo().ok().as_ref(),
+                true,
+            );
         }
         None
     }

@@ -8,7 +8,9 @@ use windows::{
     Graphics::Imaging,
     Media::Control::{
         GlobalSystemMediaTransportControlsSession,
+        GlobalSystemMediaTransportControlsSessionPlaybackInfo,
         GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+        GlobalSystemMediaTransportControlsSessionTimelineProperties,
     },
     Media::MediaPlaybackAutoRepeatMode,
     Security::Cryptography::{BinaryStringEncoding, Core, CryptographicBuffer},
@@ -19,11 +21,75 @@ use windows::{
 use crate::types::{ArtData, Capabilities, Metadata, Position, Update};
 
 // I don't want to deal with libraries
-pub fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i64 {
+fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i64 {
     // 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC)
     const TICKS_PER_MILLISECOND: i64 = 10000;
     const UNIX_TIMESTAMP_DIFFERENCE: i64 = 0x019DB1DED53E8000;
     (shitty_time - UNIX_TIMESTAMP_DIFFERENCE) / TICKS_PER_MILLISECOND
+}
+
+pub fn compute_position(
+    timeline_properties: Option<&GlobalSystemMediaTransportControlsSessionTimelineProperties>,
+    playback_info: Option<&GlobalSystemMediaTransportControlsSessionPlaybackInfo>,
+    account_for_time_skew: bool,
+) -> Option<Position> {
+    if let Some(timeline_properties) = timeline_properties {
+        let playback_status = 'rt: {
+            if let Some(playback_info) = playback_info {
+                if let Ok(playback_status) = playback_info.PlaybackStatus() {
+                    break 'rt playback_status;
+                }
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
+        };
+
+        let when: DateTime<Utc> = {
+            let mut timestamp = 0;
+            if let Ok(last_updated_time) = timeline_properties.LastUpdatedTime() {
+                timestamp = shitty_windows_epoch_to_actually_usable_unix_timestamp(
+                    last_updated_time.UniversalTime,
+                );
+            }
+            Utc.timestamp_millis_opt(timestamp).unwrap()
+        };
+
+        let end_time: f64 = 'rt2: {
+            if let Ok(_end_time) = timeline_properties.EndTime() {
+                let _duration: Duration = _end_time.into();
+                break 'rt2 _duration.as_secs_f64();
+            }
+            0f64
+        };
+
+        let mut position: f64 = 'rt2: {
+            if let Ok(_position) = timeline_properties.Position() {
+                if let Ok(_start_time) = timeline_properties.StartTime() {
+                    let _duration: Duration = _position.into();
+                    let _start_duration: Duration = _start_time.into();
+                    break 'rt2 _duration.as_secs_f64() - _start_duration.as_secs_f64();
+                }
+            }
+            0f64
+        };
+
+        if end_time == 0f64 {
+            return None;
+        }
+
+        if account_for_time_skew
+            && playback_status == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
+        {
+            let time_from_last_update =
+                chrono::offset::Utc::now().timestamp_millis() - when.timestamp_millis();
+            position += time_from_last_update as f64 / 1000f64;
+        }
+
+        return Some(Position {
+            how_much: position,
+            when,
+        });
+    }
+    None
 }
 
 async fn get_session_player_name_for_user(
@@ -258,55 +324,14 @@ pub async fn get_session_status(session: GlobalSystemMediaTransportControlsSessi
             if playback_info.is_none() {
                 break 'rt false;
             }
-            let _shuffle = playback_info.unwrap().IsShuffleActive().ok();
+            let _shuffle = playback_info.as_ref().unwrap().IsShuffleActive().ok();
             if _shuffle.is_none() {
                 break 'rt false;
             }
             _shuffle.unwrap().Value().unwrap_or(false)
         },
         volume: -1f64,
-        elapsed: 'rt: {
-            if let Some(timeline_properties) = timeline_properties {
-                let when: DateTime<Utc> = {
-                    let mut timestamp = 0;
-                    if let Ok(last_updated_time) = timeline_properties.LastUpdatedTime() {
-                        timestamp = shitty_windows_epoch_to_actually_usable_unix_timestamp(
-                            last_updated_time.UniversalTime,
-                        );
-                    }
-                    Utc.timestamp_millis_opt(timestamp).unwrap()
-                };
-
-                let end_time: f64 = 'rt2: {
-                    if let Ok(_end_time) = timeline_properties.EndTime() {
-                        let _duration: Duration = _end_time.into();
-                        break 'rt2 _duration.as_secs_f64();
-                    }
-                    0f64
-                };
-
-                let position: f64 = 'rt2: {
-                    if let Ok(_position) = timeline_properties.Position() {
-                        if let Ok(_start_time) = timeline_properties.StartTime() {
-                            let _duration: Duration = _position.into();
-                            let _start_duration: Duration = _start_time.into();
-                            break 'rt2 _duration.as_secs_f64() - _start_duration.as_secs_f64();
-                        }
-                    }
-                    0f64
-                };
-
-                if end_time == 0f64 {
-                    break 'rt None;
-                }
-
-                break 'rt Some(Position {
-                    how_much: position,
-                    when,
-                });
-            }
-            None
-        },
+        elapsed: compute_position(timeline_properties.as_ref(), playback_info.as_ref(), false),
         app: 'rt: {
             let aumid = session.SourceAppUserModelId().ok();
             if aumid.is_none() {
