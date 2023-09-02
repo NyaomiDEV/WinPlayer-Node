@@ -68,8 +68,8 @@ impl PlayerManager {
     }
 
     fn get_session(&self) -> Option<&Player> {
-        if let Some(player_key) = self.active_player_key {
-            return self.players.get(&player_key);
+        if let Some(player_key) = &self.active_player_key {
+            return self.players.get(player_key);
         }
         None
     }
