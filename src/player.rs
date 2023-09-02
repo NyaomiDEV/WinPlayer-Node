@@ -6,7 +6,7 @@ use windows::{
     Media::MediaPlaybackAutoRepeatMode,
 };
 
-use crate::types::{Position, Update};
+use crate::types::{Position, Status};
 
 use crate::util::{
     compute_position, get_session_capabilities, get_session_metadata, get_session_player_name,
@@ -21,11 +21,11 @@ impl Player {
         Player { session }
     }
 
-    pub async fn get_session_status(&self) -> Update {
+    pub async fn get_session_status(&self) -> Status {
         let playback_info = self.session.GetPlaybackInfo().ok();
         let timeline_properties = self.session.GetTimelineProperties().ok();
 
-        Update {
+        Status {
             metadata: get_session_metadata(&self.session).await,
             capabilities: get_session_capabilities(&self.session),
             status: 'rt: {

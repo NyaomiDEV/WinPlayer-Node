@@ -27,16 +27,16 @@ pub struct Capabilities {
 
 pub struct Position {
     pub how_much: f64,
-    pub when: DateTime<Utc>
+    pub when: DateTime<Utc>,
 }
 
-pub struct Update {
+pub struct Status {
     pub metadata: Option<Metadata>,
     pub capabilities: Capabilities,
     pub status: String,
     pub is_loop: String,
     pub shuffle: bool,
-    pub volume: f64,      // tanto sta a -1 lmao
+    pub volume: f64, // tanto sta a -1 lmao
     pub elapsed: Option<Position>,
     pub app: Option<String>,      // App User Model ID
     pub app_name: Option<String>, // Nome per hoomans

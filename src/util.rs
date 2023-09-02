@@ -12,13 +12,12 @@ use windows::{
         GlobalSystemMediaTransportControlsSessionPlaybackStatus,
         GlobalSystemMediaTransportControlsSessionTimelineProperties,
     },
-    Media::MediaPlaybackAutoRepeatMode,
     Security::Cryptography::{BinaryStringEncoding, Core, CryptographicBuffer},
     Storage::Streams::{self, DataReader},
     System,
 };
 
-use crate::types::{ArtData, Capabilities, Metadata, Position, Update};
+use crate::types::{ArtData, Capabilities, Metadata, Position};
 
 // I don't want to deal with libraries
 fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i64 {
