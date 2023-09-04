@@ -14,11 +14,23 @@ use crate::util::{
 
 pub struct Player {
     pub session: GlobalSystemMediaTransportControlsSession,
+    pub aumid: String,
+    pub friendly_name: Option<String>,
 }
 
 impl Player {
-    pub fn new(session: GlobalSystemMediaTransportControlsSession) -> Self {
-        Player { session }
+    pub async fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
+        Player {
+            friendly_name: 'rt: {
+                let app_name = get_session_player_name(&session).await.ok();
+                if app_name.is_none() {
+                    break 'rt None::<String>;
+                }
+                Some(app_name.unwrap())
+            },
+            session,
+            aumid
+        }
     }
 
     pub async fn get_session_status(&self) -> Status {
@@ -73,20 +85,8 @@ impl Player {
             },
             volume: -1f64,
             elapsed: compute_position(timeline_properties.as_ref(), playback_info.as_ref(), false),
-            app: 'rt: {
-                let aumid = self.session.SourceAppUserModelId().ok();
-                if aumid.is_none() {
-                    break 'rt None::<String>;
-                }
-                Some(aumid.unwrap().to_string())
-            },
-            app_name: 'rt: {
-                let app_name = get_session_player_name(&self.session).await.ok();
-                if app_name.is_none() {
-                    break 'rt None::<String>;
-                }
-                Some(app_name.unwrap())
-            },
+            app: Some(self.aumid.clone()),
+            app_name: self.friendly_name.clone(),
         }
     }
 

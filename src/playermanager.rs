@@ -100,7 +100,7 @@ impl PlayerManager {
         }
     }
 
-    fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
+    async fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
             self.active_player_key = None;
 
@@ -134,7 +134,7 @@ impl PlayerManager {
                     };
 
                     if !self.players.contains_key(&_aumid) {
-                        let player = Player::new(session);
+                        let player = Player::new(session, _aumid.clone()).await;
                         self.players.insert(_aumid.clone(), player);
                     }
 
