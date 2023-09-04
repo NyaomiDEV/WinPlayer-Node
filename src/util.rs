@@ -92,66 +92,68 @@ pub fn compute_position(
     None
 }
 
-async fn get_session_player_name_for_user(
-    session: &GlobalSystemMediaTransportControlsSession,
-) -> Result<String, Error> {
-    let mut player_name = session.SourceAppUserModelId()?;
-    let user = System::User::FindAllAsync()?.await?.GetAt(0)?;
+async fn get_session_player_name_for_user(aumid: &String) -> Option<String> {
+    let user = {
+        let user = System::User::FindAllAsync()
+            .ok()?
+            .await
+            .ok()?
+            .GetAt(0)
+            .ok()?;
+        Some(user)
+    }?;
 
-    player_name = ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(&user, &player_name)?
-        .DisplayInfo()?
-        .DisplayName()?;
+    let player_name =
+        ApplicationModel::AppInfo::GetFromAppUserModelIdForUser(&user, &HSTRING::from(aumid))
+            .ok()?
+            .DisplayInfo()
+            .ok()?
+            .DisplayName()
+            .ok()?;
 
-    if session.SourceAppUserModelId().unwrap() == player_name
-        && player_name.to_string().ends_with(".exe")
-    {
-        player_name = HSTRING::from(
+    if player_name.to_string().eq(aumid) && player_name.to_string().ends_with(".exe") {
+        return Some(
             player_name
                 .to_string()
                 .strip_suffix(".exe")
-                .unwrap_or_default(),
+                .unwrap_or_default()
+                .to_string(),
         );
     }
 
-    Ok(player_name.to_string())
+    Some(player_name.to_string())
 }
 
-async fn get_session_player_name_global(
-    session: &GlobalSystemMediaTransportControlsSession,
-) -> Result<String, Error> {
-    let mut player_name = session.SourceAppUserModelId()?;
+async fn get_session_player_name_global(aumid: &String) -> Option<String> {
+    let player_name = ApplicationModel::AppInfo::GetFromAppUserModelId(&HSTRING::from(aumid))
+        .ok()?
+        .DisplayInfo()
+        .ok()?
+        .DisplayName()
+        .ok()?;
 
-    player_name = ApplicationModel::AppInfo::GetFromAppUserModelId(&player_name)?
-        .DisplayInfo()?
-        .DisplayName()?;
-
-    if session.SourceAppUserModelId().unwrap() == player_name
-        && player_name.to_string().ends_with(".exe")
-    {
-        player_name = HSTRING::from(
+    if player_name.to_string().eq(aumid) && player_name.to_string().ends_with(".exe") {
+        return Some(
             player_name
                 .to_string()
                 .strip_suffix(".exe")
-                .unwrap_or_default(),
+                .unwrap_or_default()
+                .to_string(),
         );
     }
 
-    Ok(player_name.to_string())
+    Some(player_name.to_string())
 }
 
-pub async fn get_session_player_name(
+pub async fn get_session_player_name(aumid: &String) -> Option<String> {
+    get_session_player_name_for_user(aumid)
+        .await
+        .or(get_session_player_name_global(aumid).await)
+}
+
+pub fn get_session_capabilities(
     session: &GlobalSystemMediaTransportControlsSession,
-) -> Result<String, Error> {
-    match get_session_player_name_for_user(session).await {
-        Ok(r) => Ok(r),
-        Err(_) => match get_session_player_name_global(session).await {
-            Ok(r) => Ok(r),
-            Err(e) => Err(e),
-        },
-    }
-}
-
-pub fn get_session_capabilities(session: &GlobalSystemMediaTransportControlsSession) -> Capabilities {
+) -> Capabilities {
     let controls = session.GetPlaybackInfo().unwrap().Controls().unwrap();
 
     let mut capabilities = Capabilities {

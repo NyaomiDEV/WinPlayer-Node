@@ -21,60 +21,50 @@ pub struct Player {
 impl Player {
     pub async fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
         Player {
-            friendly_name: 'rt: {
-                let app_name = get_session_player_name(&session).await.ok();
-                if app_name.is_none() {
-                    break 'rt None::<String>;
-                }
-                Some(app_name.unwrap())
-            },
+            friendly_name: get_session_player_name(&aumid).await,
             session,
-            aumid
+            aumid,
         }
     }
 
     pub async fn get_session_status(&self) -> Status {
-        let playback_info = self.session.GetPlaybackInfo().ok();
+        let playback_info = self.session.GetPlaybackInfo();
         let timeline_properties = self.session.GetTimelineProperties().ok();
 
         Status {
             metadata: get_session_metadata(&self.session).await,
             capabilities: get_session_capabilities(&self.session),
             status: 'rt: {
-                if playback_info.is_none() {
+                if playback_info.is_err() {
                     break 'rt String::from("Stopped");
                 }
-                let _status = playback_info.as_ref().unwrap().PlaybackStatus().ok();
-                match _status.unwrap() {
-                    GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+                let status = playback_info.as_ref().unwrap().PlaybackStatus();
+                match status {
+                    Ok(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing) => {
                         String::from("Playing")
                     }
-                    GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
+                    Ok(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused) => {
                         String::from("Paused")
                     }
                     _ => String::from("Stopped"),
                 }
             },
             is_loop: 'rt: {
-                if playback_info.is_none() {
+                if playback_info.is_err() {
                     break 'rt String::from("None");
                 }
-                let _mode = playback_info.as_ref().unwrap().AutoRepeatMode().ok();
-                if _mode.is_none() {
+                let _mode = playback_info.as_ref().unwrap().AutoRepeatMode();
+                if _mode.is_err() {
                     break 'rt String::from("None");
                 }
-                match _mode
-                    .unwrap()
-                    .Value()
-                    .unwrap_or(MediaPlaybackAutoRepeatMode::None)
-                {
-                    MediaPlaybackAutoRepeatMode::List => String::from("List"),
-                    MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
+                match _mode.unwrap().Value() {
+                    Ok(MediaPlaybackAutoRepeatMode::List) => String::from("List"),
+                    Ok(MediaPlaybackAutoRepeatMode::Track) => String::from("Track"),
                     _ => String::from("None"),
                 }
             },
             shuffle: 'rt: {
-                if playback_info.is_none() {
+                if playback_info.is_err() {
                     break 'rt false;
                 }
                 let _shuffle = playback_info.as_ref().unwrap().IsShuffleActive().ok();
@@ -84,7 +74,11 @@ impl Player {
                 _shuffle.unwrap().Value().unwrap_or(false)
             },
             volume: -1f64,
-            elapsed: compute_position(timeline_properties.as_ref(), playback_info.as_ref(), false),
+            elapsed: compute_position(
+                timeline_properties.as_ref(),
+                playback_info.ok().as_ref(),
+                false,
+            ),
             app: Some(self.aumid.clone()),
             app_name: self.friendly_name.clone(),
         }
@@ -133,6 +127,13 @@ impl Player {
         false
     }
 
+    pub async fn set_shuffle(&self, value: bool) -> bool {
+        if let Ok(result) = self.session.TryChangeShuffleActiveAsync(value) {
+            return result.await.unwrap_or(false);
+        }
+        false
+    }
+
     pub async fn shuffle(&self) -> bool {
         if let Ok(playback_info) = self.session.GetPlaybackInfo() {
             if let Ok(shuffle_active) = playback_info.IsShuffleActive() {
@@ -143,6 +144,13 @@ impl Player {
                     return result.await.unwrap_or(false);
                 }
             }
+        }
+        false
+    }
+
+    pub async fn set_repeat(&self, value: MediaPlaybackAutoRepeatMode) -> bool {
+        if let Ok(result) = self.session.TryChangeAutoRepeatModeAsync(value) {
+            return result.await.unwrap_or(false);
         }
         false
     }

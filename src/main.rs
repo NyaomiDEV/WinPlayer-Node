@@ -1,7 +1,8 @@
-mod playermanager;
+mod event_handler;
 mod player;
-mod util;
+mod playermanager;
 mod types;
+mod util;
 fn main() {
     println!("Hello, world!");
 }
