@@ -19,15 +19,23 @@ pub struct Player {
 }
 
 impl Player {
-    pub async fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
+    pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
         Player {
-            friendly_name: get_session_player_name(&aumid).await,
             session,
             aumid,
+            friendly_name: None,
         }
     }
 
-    pub async fn get_session_status(&self) -> Status {
+    async fn populate_friendly_name(&mut self) -> () {
+        if self.friendly_name.is_some() {
+            return;
+        }
+        self.friendly_name = get_session_player_name(&self.aumid).await;
+    }
+
+    pub async fn get_session_status(&mut self) -> Status {
+        self.populate_friendly_name().await;
         let playback_info = self.session.GetPlaybackInfo();
         let timeline_properties = self.session.GetTimelineProperties().ok();
 

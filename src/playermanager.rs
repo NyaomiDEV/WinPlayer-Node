@@ -7,7 +7,7 @@ use tokio::sync::{
 };
 
 use windows::{
-    Foundation::TypedEventHandler,
+    Foundation::{EventRegistrationToken, TypedEventHandler},
     Media::Control::{
         GlobalSystemMediaTransportControlsSessionManager,
         GlobalSystemMediaTransportControlsSessionPlaybackStatus,
@@ -22,6 +22,10 @@ enum ManagerEvent {
     CurrentSessionChanged,
 }
 
+struct EventToken {
+    sessions_changed_token: EventRegistrationToken,
+    current_session_changed_token: EventRegistrationToken,
+}
 pub struct PlayerManager {
     denylist: Option<Vec<String>>,
     session_manager: GlobalSystemMediaTransportControlsSessionManager,
@@ -29,7 +33,7 @@ pub struct PlayerManager {
     system_player_key: Option<String>,
 
     loop_tx: Arc<UnboundedSender<ManagerEvent>>,
-
+    event_tokens: Option<EventToken>,
     players: HashMap<String, Player>,
 }
 
@@ -47,6 +51,7 @@ impl PlayerManager {
                     active_player_key: None,
                     system_player_key: None,
                     loop_tx: loop_tx.clone(),
+                    event_tokens: None,
                     players: HashMap::new(),
                 }));
 
@@ -56,13 +61,13 @@ impl PlayerManager {
                     loop {
                         match loop_rx.recv().await {
                             Some(ManagerEvent::CurrentSessionChanged) => {
-                                todo!()
+                                // TODO: implement this shit
                             }
                             Some(ManagerEvent::SessionsChanged) => {
+                                dbg!("cockin'");
                                 let preferred = s.lock().await.active_player_key.clone();
                                 let denylist = s.lock().await.denylist.clone();
-                                let _ = s
-                                    .lock()
+                                s.lock()
                                     .await
                                     .update_sessions(preferred.as_ref(), denylist.as_ref());
                             }
@@ -72,21 +77,42 @@ impl PlayerManager {
                 });
 
                 // Register SessionsChanged handle
-                let handler = TypedEventHandler::new({
+                let sessions_changed_handler = TypedEventHandler::new({
                     let tx = loop_tx.clone();
                     move |_, _| {
+                        dbg!("cock");
                         let _ = tx.send(ManagerEvent::SessionsChanged);
                         Ok(())
                     }
                 });
 
-                let _ = player_manager
+                let current_session_changed_handler = TypedEventHandler::new({
+                    let tx = loop_tx.clone();
+                    move |_, _| {
+                        let _ = tx.send(ManagerEvent::CurrentSessionChanged);
+                        Ok(())
+                    }
+                });
+
+                let sessions_changed_token = player_manager
                     .lock()
                     .await
                     .session_manager
-                    .SessionsChanged(&handler);
+                    .SessionsChanged(&sessions_changed_handler)
+                    .unwrap();
+                let current_session_changed_token = player_manager
+                    .lock()
+                    .await
+                    .session_manager
+                    .CurrentSessionChanged(&current_session_changed_handler)
+                    .unwrap();
 
-                loop_tx.send(ManagerEvent::SessionsChanged);
+                player_manager.lock().await.event_tokens = Some(EventToken {
+                    sessions_changed_token,
+                    current_session_changed_token,
+                });
+
+                let _ = loop_tx.send(ManagerEvent::SessionsChanged);
 
                 return Some(player_manager);
             }
@@ -123,14 +149,10 @@ impl PlayerManager {
         }
     }
 
-    async fn update_sessions(
-        &mut self,
-        preferred: Option<&String>,
-        denylist: Option<&Vec<String>>,
-    ) {
+    fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
             self.active_player_key = None;
-
+            dbg!("f'in balllin'");
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();
@@ -161,7 +183,7 @@ impl PlayerManager {
                     };
 
                     if !self.players.contains_key(&_aumid) {
-                        let player = Player::new(session, _aumid.clone()).await;
+                        let player = Player::new(session, _aumid.clone());
                         self.players.insert(_aumid.clone(), player);
                     }
 
@@ -180,6 +202,14 @@ impl PlayerManager {
 
 impl Drop for PlayerManager {
     fn drop(&mut self) {
-        // Droppare gli eventi del session manager qui, suppongo?
+        let _ = self
+            .session_manager
+            .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
+        let _ = self.session_manager.RemoveCurrentSessionChanged(
+            self.event_tokens
+                .as_mut()
+                .unwrap()
+                .current_session_changed_token,
+        );
     }
 }
