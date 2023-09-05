@@ -1,4 +1,7 @@
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use windows::{
+    Foundation::{EventRegistrationToken, TypedEventHandler},
     Media::Control::{
         GlobalSystemMediaTransportControlsSession,
         GlobalSystemMediaTransportControlsSessionPlaybackStatus,
@@ -12,22 +15,104 @@ use crate::util::{
     compute_position, get_session_capabilities, get_session_metadata, get_session_player_name,
 };
 
+enum PlayerEvent {
+    PlaybackInfoChanged,
+    MediaPropertiesChanged,
+    TimelinePropertiesChanged,
+}
+
+struct EventToken {
+    playback_info_changed_token: EventRegistrationToken,
+    media_properties_changed_token: EventRegistrationToken,
+    timeline_properties_changed_token: EventRegistrationToken,
+}
+
 pub struct Player {
     pub session: GlobalSystemMediaTransportControlsSession,
     pub aumid: String,
     pub friendly_name: Option<String>,
+
+    event_tokens: Option<EventToken>,
 }
 
+type CallbackFn = dyn FnOnce(String) + Send + Sync;
+
 impl Player {
-    pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
-        Player {
-            session,
+    pub fn new<F>(
+        session: GlobalSystemMediaTransportControlsSession,
+        aumid: String,
+        callback: &CallbackFn,
+    ) -> Self {
+        let mut player = Player {
+            session: session.clone(),
             aumid,
             friendly_name: None,
-        }
+
+            event_tokens: None,
+        };
+
+        let (tx, mut rx) = mpsc::unbounded_channel::<PlayerEvent>();
+
+        tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Some(PlayerEvent::PlaybackInfoChanged) => {
+                        callback(String::from("PlaybackInfoChanged"))
+                    }
+                    Some(PlayerEvent::MediaPropertiesChanged) => {
+                        callback(String::from("MediaPropertiesChanged"))
+                    }
+                    Some(PlayerEvent::TimelinePropertiesChanged) => {
+                        callback(String::from("TimelinePropertiesChanged"))
+                    }
+                    None => {}
+                }
+            }
+        });
+
+        let playback_info_changed_handler = TypedEventHandler::new({
+            let tx = tx.clone();
+            move |_, _| {
+                let _ = tx.send(PlayerEvent::PlaybackInfoChanged);
+                Ok(())
+            }
+        });
+
+        let media_properties_changed_handler = TypedEventHandler::new({
+            let tx = tx.clone();
+            move |_, _| {
+                let _ = tx.send(PlayerEvent::MediaPropertiesChanged);
+                Ok(())
+            }
+        });
+        let timeline_properties_changed_handler = TypedEventHandler::new({
+            let tx = tx.clone();
+            move |_, _| {
+                let _ = tx.send(PlayerEvent::TimelinePropertiesChanged);
+                Ok(())
+            }
+        });
+
+        let playback_info_changed_token = session
+            .PlaybackInfoChanged(&playback_info_changed_handler)
+            .unwrap();
+        let media_properties_changed_token = session
+            .MediaPropertiesChanged(&media_properties_changed_handler)
+            .unwrap();
+        let timeline_properties_changed_token = session
+            .TimelinePropertiesChanged(&timeline_properties_changed_handler)
+            .unwrap();
+
+        player.event_tokens = Some(EventToken {
+            playback_info_changed_token,
+            media_properties_changed_token,
+            timeline_properties_changed_token,
+        });
+
+        player
     }
 
-    async fn populate_friendly_name(&mut self) -> () {
+    async fn populate_friendly_name(&mut self) {
         if self.friendly_name.is_some() {
             return;
         }
@@ -221,6 +306,29 @@ impl Player {
             self.session.GetTimelineProperties().ok().as_ref(),
             self.session.GetPlaybackInfo().ok().as_ref(),
             wants_current_position,
+        );
+    }
+}
+
+impl Drop for Player {
+    fn drop(&mut self) {
+        let _ = self.session.RemoveMediaPropertiesChanged(
+            self.event_tokens
+                .as_mut()
+                .unwrap()
+                .media_properties_changed_token,
+        );
+        let _ = self.session.RemovePlaybackInfoChanged(
+            self.event_tokens
+                .as_mut()
+                .unwrap()
+                .playback_info_changed_token,
+        );
+        let _ = self.session.RemoveTimelinePropertiesChanged(
+            self.event_tokens
+                .as_mut()
+                .unwrap()
+                .timeline_properties_changed_token,
         );
     }
 }

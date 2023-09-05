@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{
-    mpsc::UnboundedSender,
     mpsc::{self},
     Mutex,
 };
@@ -16,7 +15,6 @@ use windows::{
 
 use crate::player::Player;
 
-enum ManagerCommand {}
 enum ManagerEvent {
     SessionsChanged,
     CurrentSessionChanged,
@@ -32,7 +30,6 @@ pub struct PlayerManager {
     active_player_key: Option<String>, // che volevo storare una ref ma mi rompe il cazzo con le lifetimes
     system_player_key: Option<String>,
 
-    loop_tx: Arc<UnboundedSender<ManagerEvent>>,
     event_tokens: Option<EventToken>,
     players: HashMap<String, Player>,
 }
@@ -43,14 +40,12 @@ impl PlayerManager {
             if let Ok(session_manager) = _binding.await {
                 // Registra eventi nel session manager QUI
                 let (loop_tx, mut loop_rx) = mpsc::unbounded_channel();
-                let loop_tx = Arc::new(loop_tx);
 
                 let player_manager = Arc::new(Mutex::new(PlayerManager {
                     denylist,
                     session_manager,
                     active_player_key: None,
                     system_player_key: None,
-                    loop_tx: loop_tx.clone(),
                     event_tokens: None,
                     players: HashMap::new(),
                 }));
@@ -61,10 +56,9 @@ impl PlayerManager {
                     loop {
                         match loop_rx.recv().await {
                             Some(ManagerEvent::CurrentSessionChanged) => {
-                                // TODO: implement this shit
+                                s.lock().await.update_system_session();
                             }
                             Some(ManagerEvent::SessionsChanged) => {
-                                dbg!("cockin'");
                                 let preferred = s.lock().await.active_player_key.clone();
                                 let denylist = s.lock().await.denylist.clone();
                                 s.lock()
@@ -80,7 +74,6 @@ impl PlayerManager {
                 let sessions_changed_handler = TypedEventHandler::new({
                     let tx = loop_tx.clone();
                     move |_, _| {
-                        dbg!("cock");
                         let _ = tx.send(ManagerEvent::SessionsChanged);
                         Ok(())
                     }
@@ -152,7 +145,6 @@ impl PlayerManager {
     fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
             self.active_player_key = None;
-            dbg!("f'in balllin'");
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();

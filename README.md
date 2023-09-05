@@ -1,5 +1,23 @@
 # WinPlayer-Node-rs
 
+# Da fare in modo assoluto
+
+- [ ] PlayerManager
+  - [ ] Registrare una callback di tipo cb (event_name: String, args: ...) -> () da firare su rx (ricezione)
+  - [ ] set_event_callback(callback)
+  - [ ] unset_event_callback()
+  - [ ] Rimuovere Arc Mutex
+  - [ ] Rendere pubblici i session refesher
+
+- [ ] Player
+  - [ ] Convenience function per prendere AUMID o esporre la prop direttamente
+  - [ ] set_event_callback(callback)
+  - [ ] unset_event_callback()
+
+- [ ] Napi
+  - [ ] Fare il binding
+  - [ ] Scrivere il JS main 
+
 ## Da fare
 - [ ] Porting di tutte le funzioni a Rust
   - [x] addPlayer(std::string const AUMID, GSMTCSession player) -> Non necessario per questo pattern
