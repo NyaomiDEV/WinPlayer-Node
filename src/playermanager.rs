@@ -1,10 +1,9 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::Sender,
-        mpsc::{self, Receiver},
-        Arc, Mutex,
-    },
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::{
+    mpsc::UnboundedSender,
+    mpsc::{self},
+    Mutex,
 };
 
 use windows::{
@@ -20,6 +19,7 @@ use crate::player::Player;
 enum ManagerCommand {}
 enum ManagerEvent {
     SessionsChanged,
+    CurrentSessionChanged,
 }
 
 pub struct PlayerManager {
@@ -28,70 +28,65 @@ pub struct PlayerManager {
     active_player_key: Option<String>, // che volevo storare una ref ma mi rompe il cazzo con le lifetimes
     system_player_key: Option<String>,
 
-    event_tx: Sender<ManagerEvent>,
-
-    loop_tx: Arc<Sender<ManagerCommand>>,
-    loop_rx: Receiver<ManagerCommand>,
+    loop_tx: Arc<UnboundedSender<ManagerEvent>>,
 
     players: HashMap<String, Player>,
 }
 
 impl PlayerManager {
-    pub async fn new(denylist: Option<Vec<String>>) -> Option<Self> {
+    pub async fn new(denylist: Option<Vec<String>>) -> Option<Arc<Mutex<Self>>> {
         if let Ok(_binding) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
             if let Ok(session_manager) = _binding.await {
                 // Registra eventi nel session manager QUI
-                let (event_tx, event_rx) = mpsc::channel();
-                let (loop_tx, loop_rx) = mpsc::channel();
+                let (loop_tx, mut loop_rx) = mpsc::unbounded_channel();
                 let loop_tx = Arc::new(loop_tx);
 
-                let player_manager = PlayerManager {
+                let player_manager = Arc::new(Mutex::new(PlayerManager {
                     denylist,
                     session_manager,
                     active_player_key: None,
                     system_player_key: None,
-                    event_tx,
-                    loop_rx,
-                    loop_tx,
+                    loop_tx: loop_tx.clone(),
                     players: HashMap::new(),
-                };
+                }));
 
-                std::thread::spawn(move || loop {
-                    match event_rx.recv() {
-                        Ok(ManagerEvent::SessionsChanged) => {
-                            todo!()
+                let s = player_manager.clone();
+
+                tokio::task::spawn(async move {
+                    loop {
+                        match loop_rx.recv().await {
+                            Some(ManagerEvent::CurrentSessionChanged) => {
+                                todo!()
+                            }
+                            Some(ManagerEvent::SessionsChanged) => {
+                                let preferred = s.lock().await.active_player_key.clone();
+                                let denylist = s.lock().await.denylist.clone();
+                                let _ = s
+                                    .lock()
+                                    .await
+                                    .update_sessions(preferred.as_ref(), denylist.as_ref());
+                            }
+                            None => {}
                         }
-                        Err(_) => {}
                     }
                 });
 
-                let rc_self = Arc::new(Mutex::new(player_manager));
-
+                // Register SessionsChanged handle
                 let handler = TypedEventHandler::new({
-                    let s = rc_self.clone();
+                    let tx = loop_tx.clone();
                     move |_, _| {
-                        Ok({
-                            let mut binding = s.lock();
-                            let s = binding.as_mut().unwrap();
-                            let preferred = s.active_player_key.clone();
-                            let denylist = s.denylist.clone();
-                            s.update_sessions(preferred.as_ref(), denylist.as_ref());
-                        })
+                        let _ = tx.send(ManagerEvent::SessionsChanged);
+                        Ok(())
                     }
                 });
 
-                rc_self
+                let _ = player_manager
                     .lock()
-                    .unwrap()
+                    .await
                     .session_manager
                     .SessionsChanged(&handler);
 
-                let preferred = rc_self.lock().unwrap().active_player_key.clone();
-                let denylist = rc_self.lock().unwrap().denylist.clone();
-                rc_self
-                    .lock()
-                    .unwrap()
-                    .update_sessions(preferred.as_ref(), denylist.as_ref());
+                loop_tx.send(ManagerEvent::SessionsChanged);
 
                 return Some(player_manager);
             }
