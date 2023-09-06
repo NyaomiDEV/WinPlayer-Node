@@ -139,7 +139,7 @@ impl PlayerManager {
     }
 
     pub fn get_sessions_keys(&self) -> Vec<String> {
-        self.players.keys().map(|x| String::from(x)).collect::<Vec<String>>()
+        self.players.keys().map(String::from).collect::<Vec<String>>()
     }
 
     pub fn get_system_session(&self) -> Option<&Player> {
