@@ -35,7 +35,7 @@ pub struct Player {
     event_tokens: Option<EventToken>,
 }
 
-type CallbackFn = dyn FnOnce(String) + Send + Sync;
+type CallbackFn = dyn Fn(String) + Send + Sync;
 
 impl Player {
     pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
@@ -48,7 +48,7 @@ impl Player {
         }
     }
 
-    pub fn set_event_callback(&mut self, callback: &CallbackFn) {
+    pub fn set_event_callback(&mut self, callback: Box<CallbackFn>) {
         let (tx, mut rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
         // how to fix this?
@@ -112,7 +112,7 @@ impl Player {
         });
     }
 
-    pub fn unset_event_callback(&mut self){
+    pub fn unset_event_callback(&mut self) {
         let _ = self.session.RemoveMediaPropertiesChanged(
             self.event_tokens
                 .as_mut()
@@ -201,7 +201,7 @@ impl Player {
     }
 
     pub fn get_aumid(&self) -> String {
-        self.aumid
+        self.aumid.clone()
     }
 
     pub async fn play(&self) -> bool {
