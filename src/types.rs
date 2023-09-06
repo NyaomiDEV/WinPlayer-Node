@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 
+pub type CallbackFn = dyn Fn(String) + Send + Sync;
+
 pub struct ArtData {
     pub data: Vec<u8>,
     pub mimetype: Vec<String>,

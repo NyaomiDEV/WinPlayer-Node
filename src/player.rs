@@ -9,7 +9,7 @@ use windows::{
     Media::MediaPlaybackAutoRepeatMode,
 };
 
-use crate::types::{Position, Status};
+use crate::types::{Position, Status, CallbackFn};
 
 use crate::util::{
     compute_position, get_session_capabilities, get_session_metadata, get_session_player_name,
@@ -34,8 +34,6 @@ pub struct Player {
 
     event_tokens: Option<EventToken>,
 }
-
-type CallbackFn = dyn Fn(String) + Send + Sync;
 
 impl Player {
     pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
