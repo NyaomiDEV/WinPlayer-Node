@@ -9,7 +9,7 @@ use windows::{
     Media::MediaPlaybackAutoRepeatMode,
 };
 
-use crate::types::{Position, Status, CallbackFn};
+use crate::types::{CallbackFn, Position, Status};
 
 use crate::util::{
     compute_position, get_session_capabilities, get_session_metadata, get_session_player_name,
@@ -49,7 +49,6 @@ impl Player {
     pub fn set_event_callback(&mut self, callback: Box<CallbackFn>) {
         let (tx, mut rx) = mpsc::unbounded_channel::<PlayerEvent>();
 
-        // how to fix this?
         tokio::spawn(async move {
             loop {
                 match rx.recv().await {
@@ -82,6 +81,7 @@ impl Player {
                 Ok(())
             }
         });
+
         let timeline_properties_changed_handler = TypedEventHandler::new({
             let tx = tx.clone();
             move |_, _| {

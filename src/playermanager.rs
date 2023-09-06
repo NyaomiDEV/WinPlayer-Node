@@ -1,9 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{
-    mpsc::{self},
-    Mutex,
-};
+use tokio::sync::mpsc;
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -13,7 +9,7 @@ use windows::{
     },
 };
 
-use crate::player::Player;
+use crate::{player::Player, types::CallbackFn};
 
 enum ManagerEvent {
     SessionsChanged,
@@ -25,95 +21,84 @@ struct EventToken {
     current_session_changed_token: EventRegistrationToken,
 }
 pub struct PlayerManager {
-    denylist: Option<Vec<String>>,
     session_manager: GlobalSystemMediaTransportControlsSessionManager,
-    active_player_key: Option<String>, // che volevo storare una ref ma mi rompe il cazzo con le lifetimes
+
+    active_player_key: Option<String>,
     system_player_key: Option<String>,
+    players: HashMap<String, Player>,
 
     event_tokens: Option<EventToken>,
-    players: HashMap<String, Player>,
 }
 
 impl PlayerManager {
-    pub async fn new(denylist: Option<Vec<String>>) -> Option<Arc<Mutex<Self>>> {
+    pub async fn new() -> Option<Self> {
         if let Ok(_binding) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
             if let Ok(session_manager) = _binding.await {
-                // Registra eventi nel session manager QUI
-                let (loop_tx, mut loop_rx) = mpsc::unbounded_channel();
-
-                let player_manager = Arc::new(Mutex::new(PlayerManager {
-                    denylist,
+                return Some(PlayerManager {
                     session_manager,
+
+                    players: HashMap::new(),
                     active_player_key: None,
                     system_player_key: None,
+
                     event_tokens: None,
-                    players: HashMap::new(),
-                }));
-
-                let s = player_manager.clone();
-
-                tokio::task::spawn(async move {
-                    loop {
-                        match loop_rx.recv().await {
-                            Some(ManagerEvent::CurrentSessionChanged) => {
-                                s.lock().await.update_system_session();
-                            }
-                            Some(ManagerEvent::SessionsChanged) => {
-                                let preferred = s.lock().await.active_player_key.clone();
-                                let denylist = s.lock().await.denylist.clone();
-                                s.lock()
-                                    .await
-                                    .update_sessions(preferred.as_ref(), denylist.as_ref());
-                            }
-                            None => {}
-                        }
-                    }
                 });
-
-                // Register SessionsChanged handle
-                let sessions_changed_handler = TypedEventHandler::new({
-                    let tx = loop_tx.clone();
-                    move |_, _| {
-                        let _ = tx.send(ManagerEvent::SessionsChanged);
-                        Ok(())
-                    }
-                });
-
-                let current_session_changed_handler = TypedEventHandler::new({
-                    let tx = loop_tx.clone();
-                    move |_, _| {
-                        let _ = tx.send(ManagerEvent::CurrentSessionChanged);
-                        Ok(())
-                    }
-                });
-
-                let sessions_changed_token = player_manager
-                    .lock()
-                    .await
-                    .session_manager
-                    .SessionsChanged(&sessions_changed_handler)
-                    .unwrap();
-                let current_session_changed_token = player_manager
-                    .lock()
-                    .await
-                    .session_manager
-                    .CurrentSessionChanged(&current_session_changed_handler)
-                    .unwrap();
-
-                player_manager.lock().await.event_tokens = Some(EventToken {
-                    sessions_changed_token,
-                    current_session_changed_token,
-                });
-
-                let _ = loop_tx.send(ManagerEvent::SessionsChanged);
-
-                return Some(player_manager);
             }
         }
         None
     }
 
-    pub fn unset_event_callback(&mut self){
+    pub fn set_event_callback(&mut self, callback: Box<CallbackFn>) {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+
+        tokio::task::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Some(ManagerEvent::CurrentSessionChanged) => {
+                        callback(String::from("CurrentSessionChanged"))
+                    }
+                    Some(ManagerEvent::SessionsChanged) => {
+                        callback(String::from("SessionsChanged"))
+                    }
+                    None => {}
+                }
+            }
+        });
+
+        let sessions_changed_handler = TypedEventHandler::new({
+            let tx = tx.clone();
+            move |_, _| {
+                let _ = tx.send(ManagerEvent::SessionsChanged);
+                Ok(())
+            }
+        });
+
+        let current_session_changed_handler = TypedEventHandler::new({
+            let tx = tx.clone();
+            move |_, _| {
+                let _ = tx.send(ManagerEvent::CurrentSessionChanged);
+                Ok(())
+            }
+        });
+
+        let sessions_changed_token = self
+            .session_manager
+            .SessionsChanged(&sessions_changed_handler)
+            .unwrap();
+        let current_session_changed_token = self
+            .session_manager
+            .CurrentSessionChanged(&current_session_changed_handler)
+            .unwrap();
+
+        self.event_tokens = Some(EventToken {
+            sessions_changed_token,
+            current_session_changed_token,
+        });
+
+        let _ = tx.send(ManagerEvent::SessionsChanged);
+    }
+
+    pub fn unset_event_callback(&mut self) {
         let _ = self
             .session_manager
             .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
@@ -139,7 +124,10 @@ impl PlayerManager {
     }
 
     pub fn get_sessions_keys(&self) -> Vec<String> {
-        self.players.keys().map(String::from).collect::<Vec<String>>()
+        self.players
+            .keys()
+            .map(String::from)
+            .collect::<Vec<String>>()
     }
 
     pub fn get_system_session(&self) -> Option<&Player> {
@@ -164,7 +152,7 @@ impl PlayerManager {
         }
     }
 
-    pub fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
+    pub fn update_sessions(&mut self, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
             self.active_player_key = None;
             for session in sessions {
@@ -188,7 +176,7 @@ impl PlayerManager {
                     };
 
                     let is_preferred = 'rt: {
-                        if let Some(result) = preferred {
+                        if let Some(result) = self.active_player_key.clone() {
                             if result.eq(&_aumid) {
                                 break 'rt true;
                             }
