@@ -9,7 +9,7 @@ use windows::{
     },
 };
 
-use crate::{player::Player, types::CallbackFn};
+use crate::owo::{player::Player, types::CallbackFn};
 
 enum ManagerEvent {
     SessionsChanged,

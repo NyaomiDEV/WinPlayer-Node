@@ -1,10 +1,8 @@
-mod player;
-mod playermanager;
-mod types;
-mod util;
+mod owo;
+
 use std::time::Duration;
 
-use playermanager::PlayerManager;
+use owo::playermanager::PlayerManager;
 use tokio::{self, main, time::sleep};
 
 #[main]
