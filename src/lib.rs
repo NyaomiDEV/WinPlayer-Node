@@ -6,6 +6,6 @@ mod types;
 mod util;
 
 #[napi]
-fn hello() -> String {
+pub fn hello() -> String {
 	String::from("Hello")
 }
