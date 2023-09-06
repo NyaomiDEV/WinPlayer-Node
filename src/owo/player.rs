@@ -12,7 +12,7 @@ use windows::{
 use crate::owo::types::{CallbackFn, Position, Status};
 
 use crate::owo::util::{
-    compute_position, get_session_capabilities, get_session_metadata, get_session_player_name,
+    compute_position, get_session_capabilities, get_session_metadata,
 };
 
 enum PlayerEvent {
