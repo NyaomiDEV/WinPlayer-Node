@@ -12,14 +12,14 @@ use crate::owo::{
 
 #[napi(js_name = "Player")]
 pub struct JsPlayer {
-    player: Player,
+    player: &Player,
     event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>,
 }
 
 #[napi]
 impl JsPlayer {
     #[napi]
-    pub async unsafe fn wrap_player(player: Player) -> Self {
+    pub fn wrap_player(player: &Player) -> Self {
         JsPlayer {
             player,
             event_callback_tsfn: None,
@@ -44,10 +44,6 @@ impl JsPlayer {
     #[napi]
     pub fn unset_event_callback(&mut self) {
         self.player.unset_event_callback()
-    }
-
-    pub async unsafe fn get_friendly_name(&mut self) -> Option<String> {
-        self.player.get_friendly_name().await
     }
 
     #[napi]
