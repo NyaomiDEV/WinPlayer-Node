@@ -9,9 +9,11 @@ mod jsplayermanager;
 
 #[napi]
 pub async fn get_manager() -> JsPlayerManager {
+    let mut player_manager = PlayerManager::new().await.unwrap();
+    let rx = player_manager.set_events();
     JsPlayerManager {
-        player_manager: PlayerManager::new().await.unwrap(),
-        event_callback_tsfn: None,
+        player_manager,
+        rx
     }
 }
 

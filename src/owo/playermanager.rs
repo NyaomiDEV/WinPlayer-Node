@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -9,9 +9,9 @@ use windows::{
     },
 };
 
-use crate::owo::{player::Player, types::CallbackFn};
+use crate::owo::player::Player;
 
-enum ManagerEvent {
+pub enum ManagerEvent {
     SessionsChanged,
     CurrentSessionChanged,
 }
@@ -48,22 +48,13 @@ impl PlayerManager {
         None
     }
 
-    pub fn set_event_callback(&mut self, callback: Box<CallbackFn>) {
-        let (tx, mut rx) = mpsc::unbounded_channel();
+    pub fn set_events(&mut self) -> UnboundedReceiver<ManagerEvent> {
+        if let Some(_tokens) = &self.event_tokens {
+            // deregister to register again, invalidates stuff
+            self.unset_events();
+        }
 
-        tokio::task::spawn(async move {
-            loop {
-                match rx.recv().await {
-                    Some(ManagerEvent::CurrentSessionChanged) => {
-                        callback(String::from("CurrentSessionChanged"))
-                    }
-                    Some(ManagerEvent::SessionsChanged) => {
-                        callback(String::from("SessionsChanged"))
-                    }
-                    None => {}
-                }
-            }
-        });
+        let (tx, rx) = unbounded_channel();
 
         let sessions_changed_handler = TypedEventHandler::new({
             let tx = tx.clone();
@@ -96,9 +87,11 @@ impl PlayerManager {
         });
 
         let _ = tx.send(ManagerEvent::SessionsChanged);
+
+        rx
     }
 
-    pub fn unset_event_callback(&mut self) {
+    pub fn unset_events(&mut self) {
         let _ = self
             .session_manager
             .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
@@ -204,6 +197,6 @@ impl PlayerManager {
 
 impl Drop for PlayerManager {
     fn drop(&mut self) {
-        self.unset_event_callback();
+        self.unset_events();
     }
 }

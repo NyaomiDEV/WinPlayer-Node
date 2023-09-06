@@ -1,4 +1,4 @@
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -9,11 +9,11 @@ use windows::{
     Media::MediaPlaybackAutoRepeatMode,
 };
 
-use crate::owo::types::{CallbackFn, Position, Status};
+use crate::owo::types::{Position, Status};
 
 use crate::owo::util::{compute_position, get_session_capabilities, get_session_metadata};
 
-enum PlayerEvent {
+pub enum PlayerEvent {
     PlaybackInfoChanged,
     MediaPropertiesChanged,
     TimelinePropertiesChanged,
@@ -42,25 +42,13 @@ impl Player {
         }
     }
 
-    pub fn set_event_callback(&mut self, callback: Box<CallbackFn>) {
-        let (tx, mut rx) = mpsc::unbounded_channel::<PlayerEvent>();
+    pub fn set_events(&mut self) -> UnboundedReceiver<PlayerEvent> {
+        if let Some(_tokens) = &self.event_tokens {
+            // deregister to register again, invalidates stuff
+            self.unset_events();
+        }
 
-        tokio::spawn(async move {
-            loop {
-                match rx.recv().await {
-                    Some(PlayerEvent::PlaybackInfoChanged) => {
-                        callback(String::from("PlaybackInfoChanged"))
-                    }
-                    Some(PlayerEvent::MediaPropertiesChanged) => {
-                        callback(String::from("MediaPropertiesChanged"))
-                    }
-                    Some(PlayerEvent::TimelinePropertiesChanged) => {
-                        callback(String::from("TimelinePropertiesChanged"))
-                    }
-                    None => {}
-                }
-            }
-        });
+        let (tx, rx) = unbounded_channel();
 
         let playback_info_changed_handler = TypedEventHandler::new({
             let tx = tx.clone();
@@ -104,9 +92,11 @@ impl Player {
             media_properties_changed_token,
             timeline_properties_changed_token,
         });
+
+        rx
     }
 
-    pub fn unset_event_callback(&mut self) {
+    pub fn unset_events(&mut self) {
         let _ = self.session.RemoveMediaPropertiesChanged(
             self.event_tokens
                 .as_mut()
@@ -308,6 +298,6 @@ impl Player {
 
 impl Drop for Player {
     fn drop(&mut self) {
-        self.unset_event_callback();
+        self.unset_events();
     }
 }

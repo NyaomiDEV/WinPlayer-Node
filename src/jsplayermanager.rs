@@ -1,35 +1,23 @@
-use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::jsplayer::JsPlayer;
-use crate::owo::playermanager::PlayerManager;
+use crate::owo::playermanager::{PlayerManager, ManagerEvent};
 
 #[napi(js_name = "PlayerManager")]
 pub struct JsPlayerManager {
     player_manager: PlayerManager,
-    event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>,
+    rx: UnboundedReceiver<ManagerEvent>
 }
 
 #[napi]
 impl JsPlayerManager {
     #[napi]
-    pub fn set_event_callback(&mut self, callback: napi::JsFunction) {
-        self.event_callback_tsfn = Some(
-            callback
-                .create_threadsafe_function(0, |ctx| Ok(ctx.value))
-                .unwrap(),
-        );
-
-        let event_callback = Box::new({
-            let _fn = self.event_callback_tsfn.clone();
-            |event: String| {
-                if let Some(tsfn) = _fn {
-                    tsfn.call(vec![event], ThreadsafeFunctionCallMode::NonBlocking);
-                }
-            }
-        });
-
-        self.player_manager.set_event_callback(event_callback);
+    pub async unsafe fn poll_next_event(&mut self) -> String {
+        match self.rx.recv().await.unwrap() {
+            ManagerEvent::CurrentSessionChanged => String::from("CurrentSessionChanged"),
+            ManagerEvent::SessionsChanged => String::from("SessionsChanged")
+        }
     }
 
     #[napi]

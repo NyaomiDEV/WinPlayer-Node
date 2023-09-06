@@ -1,50 +1,37 @@
 use std::sync::Arc;
 
-use napi::{
-    threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction,
-};
 use napi_derive::napi;
+use tokio::sync::mpsc::UnboundedReceiver;
 use windows::Media::MediaPlaybackAutoRepeatMode;
 
 use crate::owo::{
-    player::Player,
+    player::{Player, PlayerEvent},
     types::{Position, Status},
 };
 
 #[napi(js_name = "Player")]
 pub struct JsPlayer {
     player: Arc<Player>,
-    event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>,
+    rx: UnboundedReceiver<PlayerEvent>
 }
 
 #[napi]
 impl JsPlayer {
     pub fn wrap_player(player: Arc<Player>) -> Self {
+        let rx = player.set_events(); // eh, bello l'arc
         JsPlayer {
             player,
-            event_callback_tsfn: None,
+            rx
         }
     }
 
     #[napi]
-    pub fn set_event_callback(&mut self, callback: JsFunction) {
-        self.event_callback_tsfn = Some(
-            callback
-                .create_threadsafe_function(0, |ctx| Ok(ctx.value))
-                .unwrap(),
-        );
-
-        self.player.set_event_callback(Box::new(|event| {
-            if let Some(tsfn) = self.event_callback_tsfn {
-                tsfn.call(vec![event], ThreadsafeFunctionCallMode::NonBlocking);
-            }
-        }));
-    }
-
-    #[napi]
-    pub fn unset_event_callback(&mut self) {
-        self.player.unset_event_callback()
+    pub async unsafe fn poll_next_event(&mut self) -> String {
+        match self.rx.recv().await.unwrap() {
+            PlayerEvent::PlaybackInfoChanged => String::from("PlaybackInfoChanged"),
+            PlayerEvent::MediaPropertiesChanged => String::from("MediaPropertiesChanged"),
+            PlayerEvent::TimelinePropertiesChanged => String::from("TimelinePropertiesChanged"),
+        }
     }
 
     #[napi]
