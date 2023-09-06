@@ -11,9 +11,7 @@ use windows::{
 
 use crate::owo::types::{CallbackFn, Position, Status};
 
-use crate::owo::util::{
-    compute_position, get_session_capabilities, get_session_metadata,
-};
+use crate::owo::util::{compute_position, get_session_capabilities, get_session_metadata};
 
 enum PlayerEvent {
     PlaybackInfoChanged,
@@ -241,15 +239,10 @@ impl Player {
         false
     }
 
-    pub async fn shuffle(&self) -> bool {
+    pub fn get_shuffle(&self) -> bool {
         if let Ok(playback_info) = self.session.GetPlaybackInfo() {
             if let Ok(shuffle_active) = playback_info.IsShuffleActive() {
-                if let Ok(result) = self
-                    .session
-                    .TryChangeShuffleActiveAsync(shuffle_active.Value().unwrap_or(false))
-                {
-                    return result.await.unwrap_or(false);
-                }
+                return shuffle_active.Value().unwrap_or(false);
             }
         }
         false
@@ -262,24 +255,13 @@ impl Player {
         false
     }
 
-    pub async fn repeat(&self) -> bool {
+    pub fn get_repeat(&self) -> Option<MediaPlaybackAutoRepeatMode> {
         if let Ok(playback_info) = self.session.GetPlaybackInfo() {
             if let Ok(repeat_mode) = playback_info.AutoRepeatMode() {
-                let new_repeat_mode = match repeat_mode.Value() {
-                    Err(_) => MediaPlaybackAutoRepeatMode::None,
-                    Ok(rp) => match rp {
-                        MediaPlaybackAutoRepeatMode::None => MediaPlaybackAutoRepeatMode::List,
-                        MediaPlaybackAutoRepeatMode::List => MediaPlaybackAutoRepeatMode::Track,
-                        MediaPlaybackAutoRepeatMode::Track => MediaPlaybackAutoRepeatMode::None,
-                        _ => MediaPlaybackAutoRepeatMode::None,
-                    },
-                };
-                if let Ok(result) = self.session.TryChangeAutoRepeatModeAsync(new_repeat_mode) {
-                    return result.await.unwrap_or(false);
-                }
+                return repeat_mode.Value().ok();
             }
         }
-        false
+        None
     }
 
     pub async fn seek(&self, offset_us: i64) -> bool {

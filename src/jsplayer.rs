@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use napi::{
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction,
@@ -12,14 +14,13 @@ use crate::owo::{
 
 #[napi(js_name = "Player")]
 pub struct JsPlayer {
-    player: &Player,
+    player: Arc<Player>,
     event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>,
 }
 
 #[napi]
 impl JsPlayer {
-    #[napi]
-    pub fn wrap_player(player: &Player) -> Self {
+    pub fn wrap_player(player: Arc<Player>) -> Self {
         JsPlayer {
             player,
             event_callback_tsfn: None,
@@ -92,8 +93,8 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn shuffle(&self) -> bool {
-        self.player.shuffle().await
+    pub fn get_shuffle(&self) -> bool {
+        self.player.get_shuffle()
     }
 
     #[napi]
@@ -108,8 +109,16 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn repeat(&self) -> bool {
-        self.player.repeat().await
+    pub async fn get_repeat(&self) -> Option<String> {
+        if let Some(repeat_mode) = self.player.get_repeat() {
+            return Some(match repeat_mode {
+                MediaPlaybackAutoRepeatMode::None => String::from("None"),
+                MediaPlaybackAutoRepeatMode::List => String::from("List"),
+                MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
+                _ => String::from("None"),
+            });
+        }
+        None
     }
 
     #[napi]

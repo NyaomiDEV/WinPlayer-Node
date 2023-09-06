@@ -20,11 +20,16 @@ impl JsPlayerManager {
                 .unwrap(),
         );
 
-        self.player_manager.set_event_callback(Box::new(|event| {
-            if let Some(tsfn) = self.event_callback_tsfn {
-                tsfn.call(vec![event], ThreadsafeFunctionCallMode::NonBlocking);
+        let event_callback = Box::new({
+            let _fn = self.event_callback_tsfn.clone();
+            |event: String| {
+                if let Some(tsfn) = _fn {
+                    tsfn.call(vec![event], ThreadsafeFunctionCallMode::NonBlocking);
+                }
             }
-        }));
+        });
+
+        self.player_manager.set_event_callback(event_callback);
     }
 
     #[napi]

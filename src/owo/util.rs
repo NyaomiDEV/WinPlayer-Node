@@ -1,11 +1,11 @@
 use std::time::Duration;
+use tokio::runtime::Runtime;
 
 use chrono::{DateTime, TimeZone, Utc};
 
 use windows::{
     core::HSTRING,
     ApplicationModel,
-    Graphics::Imaging,
     Media::Control::{
         GlobalSystemMediaTransportControlsSession,
         GlobalSystemMediaTransportControlsSessionPlaybackInfo,
@@ -227,43 +227,33 @@ pub async fn get_session_metadata(
                 );
             }
 
-            let thumbnail = info.Thumbnail();
-            if thumbnail.is_ok() {
-                let stream = thumbnail.unwrap().OpenReadAsync().unwrap().await.unwrap();
+            if let Ok(thumbnail) = info.Thumbnail() {
+                let _binding = thumbnail.OpenReadAsync().unwrap();
+                let stream = Runtime::new().unwrap().block_on(_binding).unwrap();
+
                 if stream.CanRead().unwrap() && stream.Size().unwrap() > 0 {
-                    let decoder = Imaging::BitmapDecoder::CreateAsync(&stream)
-                        .unwrap()
-                        .await
-                        .unwrap();
-
-                    let pngstream = Streams::InMemoryRandomAccessStream::new().unwrap();
-                    let encoder = Imaging::BitmapEncoder::CreateAsync(
-                        Imaging::BitmapEncoder::PngEncoderId().unwrap(),
-                        &pngstream,
-                    )
-                    .unwrap()
-                    .await
-                    .unwrap();
-
-                    let software_bitmap = decoder.GetSoftwareBitmapAsync().unwrap().await.unwrap();
-                    encoder.SetSoftwareBitmap(&software_bitmap).unwrap();
-
-                    encoder.FlushAsync().unwrap().await.unwrap();
-
                     let buffer =
-                        Streams::Buffer::Create(pngstream.Size().unwrap().try_into().unwrap())
+                        Streams::Buffer::Create(stream.Size().unwrap().try_into().unwrap())
                             .unwrap();
-                    let result_buffer = pngstream
-                        .ReadAsync(
-                            &buffer,
-                            pngstream.Size().unwrap().try_into().unwrap(),
-                            Streams::InputStreamOptions::None,
-                        )
+
+                    let result_buffer = Runtime::new()
                         .unwrap()
-                        .await
+                        .block_on(
+                            stream
+                                .ReadAsync(
+                                    &buffer,
+                                    stream.Size().unwrap().try_into().unwrap(),
+                                    Streams::InputStreamOptions::None,
+                                )
+                                .unwrap(),
+                        )
                         .unwrap();
-                    pngstream.FlushAsync().unwrap().await.unwrap();
-                    pngstream.Close().unwrap();
+
+                    let _ = Runtime::new()
+                        .unwrap()
+                        .block_on(stream.FlushAsync().unwrap())
+                        .unwrap();
+                    stream.Close().unwrap();
 
                     let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
                     let mut data = Vec::with_capacity(result_buffer.Length().unwrap() as usize);
@@ -271,7 +261,7 @@ pub async fn get_session_metadata(
 
                     metadata.art_data = Some(ArtData {
                         data,
-                        mimetype: vec![String::from("image/png")],
+                        mimetype: vec![stream.ContentType().unwrap().to_string()],
                     });
                 }
             }
