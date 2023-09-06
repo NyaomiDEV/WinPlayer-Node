@@ -1,22 +1,24 @@
-use napi::threadsafe_function::{ThreadsafeFunction, ErrorStrategy, ThreadsafeFunctionCallMode};
+use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
 
-use crate::owo::playermanager::PlayerManager;
 use crate::jsplayer::JsPlayer;
+use crate::owo::playermanager::PlayerManager;
 
 #[napi(js_name = "PlayerManager")]
 pub struct JsPlayerManager {
     player_manager: PlayerManager,
-    event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>
+    event_callback_tsfn: Option<ThreadsafeFunction<Vec<String>, ErrorStrategy::Fatal>>,
 }
 
 #[napi]
 impl JsPlayerManager {
-	#[napi]
+    #[napi]
     pub fn set_event_callback(&mut self, callback: napi::JsFunction) {
-        self.event_callback_tsfn = Some(callback.create_threadsafe_function(0, |ctx| {
-            Ok(ctx.value)
-        }).unwrap());
+        self.event_callback_tsfn = Some(
+            callback
+                .create_threadsafe_function(0, |ctx| Ok(ctx.value))
+                .unwrap(),
+        );
 
         self.player_manager.set_event_callback(Box::new(|event| {
             if let Some(tsfn) = self.event_callback_tsfn {

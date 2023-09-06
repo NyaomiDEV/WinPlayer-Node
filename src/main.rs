@@ -10,19 +10,17 @@ async fn main() {
     let mut player_manager = PlayerManager::new().await.unwrap();
 
     // if this doesnt work on here it wont work on js
-    player_manager.set_event_callback(Box::new(|event: String| {
-        match event.as_str() {
-            "SessionsChanged" => {
-                dbg!("SessionsChanged");
-                player_manager.update_sessions(None);
-            }
-            "CurrentSessionChanged" => {
-                dbg!("CurrentSessionChanged");
-                player_manager.update_system_session();
-            }
-            _ => {
-                dbg!(event);
-            }
+    player_manager.set_event_callback(Box::new(|event: String| match event.as_str() {
+        "SessionsChanged" => {
+            dbg!("SessionsChanged");
+            player_manager.update_sessions(None);
+        }
+        "CurrentSessionChanged" => {
+            dbg!("CurrentSessionChanged");
+            player_manager.update_system_session();
+        }
+        _ => {
+            dbg!(event);
         }
     }));
 

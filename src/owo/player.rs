@@ -28,9 +28,8 @@ struct EventToken {
 }
 
 pub struct Player {
-    pub session: GlobalSystemMediaTransportControlsSession,
-    pub aumid: String,
-    pub friendly_name: Option<String>,
+    session: GlobalSystemMediaTransportControlsSession,
+    aumid: String,
 
     event_tokens: Option<EventToken>,
 }
@@ -40,7 +39,6 @@ impl Player {
         Player {
             session: session.clone(),
             aumid,
-            friendly_name: None,
 
             event_tokens: None,
         }
@@ -133,15 +131,7 @@ impl Player {
         self.event_tokens = None;
     }
 
-    async fn populate_friendly_name(&mut self) {
-        if self.friendly_name.is_some() {
-            return;
-        }
-        self.friendly_name = get_session_player_name(&self.aumid).await;
-    }
-
-    pub async fn get_session_status(&mut self) -> Status {
-        self.populate_friendly_name().await;
+    pub async fn get_session_status(&self) -> Status {
         let playback_info = self.session.GetPlaybackInfo();
         let timeline_properties = self.session.GetTimelineProperties().ok();
 
@@ -194,7 +184,6 @@ impl Player {
                 false,
             ),
             app: Some(self.aumid.clone()),
-            app_name: self.friendly_name.clone(),
         }
     }
 

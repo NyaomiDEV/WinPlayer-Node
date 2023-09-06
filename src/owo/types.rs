@@ -46,6 +46,5 @@ pub struct Status {
     pub shuffle: bool,
     pub volume: f64, // tanto sta a -1 lmao
     pub elapsed: Option<Position>,
-    pub app: Option<String>,      // App User Model ID
-    pub app_name: Option<String>, // Nome per hoomans
+    pub app: Option<String>, // App User Model ID
 }
