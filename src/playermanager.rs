@@ -113,11 +113,33 @@ impl PlayerManager {
         None
     }
 
-    pub fn get_session(&self) -> Option<&Player> {
+    pub fn unset_event_callback(&mut self){
+        let _ = self
+            .session_manager
+            .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
+        let _ = self.session_manager.RemoveCurrentSessionChanged(
+            self.event_tokens
+                .as_mut()
+                .unwrap()
+                .current_session_changed_token,
+        );
+
+        self.event_tokens = None;
+    }
+
+    pub fn get_active_session(&self) -> Option<&Player> {
         if let Some(player_key) = &self.active_player_key {
             return self.players.get(player_key);
         }
         None
+    }
+
+    pub fn get_session(&self, aumid: &String) -> Option<&Player> {
+        self.players.get(aumid)
+    }
+
+    pub fn get_sessions_keys(&self) -> Vec<String> {
+        self.players.keys().map(|x| String::from(x)).collect::<Vec<String>>()
     }
 
     pub fn get_system_session(&self) -> Option<&Player> {
@@ -127,7 +149,7 @@ impl PlayerManager {
         None
     }
 
-    fn update_system_session(&mut self) {
+    pub fn update_system_session(&mut self) {
         if let Ok(session) = self.session_manager.GetCurrentSession() {
             self.system_player_key = None;
 
@@ -142,7 +164,7 @@ impl PlayerManager {
         }
     }
 
-    fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
+    pub fn update_sessions(&mut self, preferred: Option<&String>, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
             self.active_player_key = None;
             for session in sessions {
@@ -194,14 +216,6 @@ impl PlayerManager {
 
 impl Drop for PlayerManager {
     fn drop(&mut self) {
-        let _ = self
-            .session_manager
-            .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
-        let _ = self.session_manager.RemoveCurrentSessionChanged(
-            self.event_tokens
-                .as_mut()
-                .unwrap()
-                .current_session_changed_token,
-        );
+        self.unset_event_callback();
     }
 }

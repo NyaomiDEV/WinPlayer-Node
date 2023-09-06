@@ -12,7 +12,7 @@ async fn main() {
     let player_manager = PlayerManager::new(None).await.unwrap();
     loop {
         sleep(Duration::from_millis(100)).await;
-        if let Some(session) = player_manager.lock().await.get_session() {
+        if let Some(session) = player_manager.lock().await.get_active_session() {
             session.pause().await;
         } else {
             println!("No session 💀")

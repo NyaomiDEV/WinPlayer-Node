@@ -5,14 +5,14 @@
 - [ ] PlayerManager
   - [ ] Registrare una callback di tipo cb (event_name: String, args: ...) -> () da firare su rx (ricezione)
   - [ ] set_event_callback(callback)
-  - [ ] unset_event_callback()
+  - [x] unset_event_callback()
   - [ ] Rimuovere Arc Mutex
-  - [ ] Rendere pubblici i session refesher
+  - [x] Rendere pubblici i session refesher
 
-- [ ] Player
-  - [ ] Convenience function per prendere AUMID o esporre la prop direttamente
-  - [ ] set_event_callback(callback)
-  - [ ] unset_event_callback()
+- [x] Player
+  - [x] Convenience function per prendere AUMID o esporre la prop direttamente
+  - [x] set_event_callback(callback)
+  - [x] unset_event_callback()
 
 - [ ] Napi
   - [ ] Fare il binding
