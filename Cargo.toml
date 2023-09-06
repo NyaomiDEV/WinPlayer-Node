@@ -9,8 +9,17 @@ crate-type = ["cdylib"]
 [dependencies]
 chrono = "0.4.28"
 tokio = { version = "1", features = ["full"] }
-napi = { version = "2.12.2", default-features = false, features = ["napi6", "async", "serde_json"] }
 napi-derive = "2.12.2"
+
+[dependencies.napi]
+version = "2.12.2"
+default-features = false
+features = [
+    "napi8",
+    "chrono_date",
+    "async",
+    "tokio_full"
+]
 
 [dependencies.windows]
 version = "0.51.1"

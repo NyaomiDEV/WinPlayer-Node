@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, TimeZone, Utc};
 
 use windows::{
-    core::{Error, HSTRING},
+    core::HSTRING,
     ApplicationModel,
     Graphics::Imaging,
     Media::Control::{

@@ -1,12 +1,15 @@
 use chrono::{DateTime, Utc};
+use napi_derive::napi;
 
 pub type CallbackFn = dyn Fn(String) + Send + Sync;
 
+#[napi(object)]
 pub struct ArtData {
     pub data: Vec<u8>,
     pub mimetype: Vec<String>,
 }
 
+#[napi(object)]
 pub struct Metadata {
     pub album: Option<String>,
     pub album_artist: Option<String>,
@@ -19,6 +22,7 @@ pub struct Metadata {
     pub title: String,
 }
 
+#[napi(object)]
 pub struct Capabilities {
     pub can_control: bool,
     pub can_play_pause: bool,
@@ -27,11 +31,13 @@ pub struct Capabilities {
     pub can_seek: bool,
 }
 
+#[napi(object)]
 pub struct Position {
     pub how_much: f64,
     pub when: DateTime<Utc>,
 }
 
+#[napi(object)]
 pub struct Status {
     pub metadata: Option<Metadata>,
     pub capabilities: Capabilities,
