@@ -1,2 +1,10 @@
 /target
 /WinPlayer-Node
+/node_modules
+/build
+
+yarn-debug.log*
+yarn-error.log*
+
+*.node
+.DS_Store
