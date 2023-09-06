@@ -17,7 +17,7 @@ use windows::{
     System,
 };
 
-use crate::types::{ArtData, Capabilities, Metadata, Position};
+use crate::owo::types::{ArtData, Capabilities, Metadata, Position};
 
 // I don't want to deal with libraries
 fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i64 {
