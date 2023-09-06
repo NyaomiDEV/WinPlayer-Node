@@ -1,0 +1,21 @@
+{
+  "name": "winplayer-rs",
+  "version": "0.1.0",
+  "main": "index.node",
+  "types": "index.d.ts",
+  "license": "MPL-2.0",
+  "private": true,
+  "napi": {
+    "name": "index"
+  },
+  "scripts": {
+    "build": "napi build --release",
+    "build:debug": "napi build"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.16.3"
+  },
+  "os": [
+    "win32"
+  ]
+}

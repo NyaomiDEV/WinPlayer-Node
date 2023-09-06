@@ -1,11 +1,16 @@
 [package]
-name = "helo-nao"
+name = "winplayer-rs"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
 
 [dependencies]
 chrono = "0.4.28"
 tokio = { version = "1", features = ["full"] }
+napi = { version = "2.12.2", default-features = false, features = ["napi6", "async", "serde_json"] }
+napi-derive = "2.12.2"
 
 [dependencies.windows]
 version = "0.51.1"
@@ -19,3 +24,9 @@ features = [
     "Storage_Streams",
     "System"
 ]
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true
