@@ -44,7 +44,7 @@ impl JsPlayer {
         }
     }
 
-    #[napi]
+    #[napi(ts_return_type = "Promise<Status>")]
     pub async fn get_status(&self) -> JsStatus {
         JsStatus::from(self.internal.player.lock().await.get_status().await)
     }
@@ -168,7 +168,7 @@ impl JsPlayer {
             .await
     }
 
-    #[napi]
+    #[napi(ts_return_type = "Promise<Position | null>")]
     pub async fn get_position(&self, wants_current_position: bool) -> Option<JsPosition> {
         if let Some(position) = self
             .internal
