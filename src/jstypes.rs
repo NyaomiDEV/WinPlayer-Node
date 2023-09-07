@@ -4,7 +4,7 @@ use napi_derive::napi;
 
 use crate::owo::types::{ArtData, Capabilities, Metadata, Position, Status};
 
-#[napi(object)]
+#[napi(object, js_name = "ArtData")]
 pub struct JsArtData {
     pub data: Buffer,
     pub mimetype: String,
@@ -19,7 +19,7 @@ impl From<ArtData> for JsArtData {
     }
 }
 
-#[napi(object)]
+#[napi(object, js_name = "Metadata")]
 pub struct JsMetadata {
     pub album: Option<String>,
     pub album_artist: Option<String>,
@@ -53,7 +53,7 @@ impl From<Metadata> for JsMetadata {
     }
 }
 
-#[napi(object)]
+#[napi(object, js_name = "Capabilities")]
 pub struct JsCapabilities {
     pub can_control: bool,
     pub can_play_pause: bool,
@@ -74,7 +74,7 @@ impl From<Capabilities> for JsCapabilities {
     }
 }
 
-#[napi(object)]
+#[napi(object, js_name = "Position")]
 pub struct JsPosition {
     pub how_much: f64,
     pub when: DateTime<Utc>,
@@ -89,7 +89,7 @@ impl From<Position> for JsPosition {
     }
 }
 
-#[napi(object)]
+#[napi(object, js_name = "Status")]
 pub struct JsStatus {
     pub metadata: Option<JsMetadata>,
     pub capabilities: JsCapabilities,
