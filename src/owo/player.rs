@@ -120,7 +120,7 @@ impl Player {
         self.event_tokens = None;
     }
 
-    pub async fn get_session_status(&self) -> Status {
+    pub async fn get_status(&self) -> Status {
         let playback_info = self.session.GetPlaybackInfo();
         let timeline_properties = self.session.GetTimelineProperties().ok();
 

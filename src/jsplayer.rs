@@ -32,8 +32,8 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn get_session_status(&self) -> Status {
-        self.player.lock().await.get_session_status().await
+    pub async fn get_status(&self) -> Status {
+        self.player.lock().await.get_status().await
     }
 
     #[napi]
@@ -122,6 +122,10 @@ impl JsPlayer {
 
     #[napi]
     pub async fn get_position(&self, wants_current_position: bool) -> Option<Position> {
-        self.player.lock().await.get_position(wants_current_position).await
+        self.player
+            .lock()
+            .await
+            .get_position(wants_current_position)
+            .await
     }
 }
