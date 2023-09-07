@@ -204,27 +204,16 @@ pub async fn get_session_metadata(
                 title: info.Title().unwrap_or_default().to_string(),
             };
 
-            let id = HSTRING::from(format!(
+            let id = format!(
                 "{}{}{}{}",
                 metadata.album_artist.clone().unwrap_or(String::new()),
                 metadata.artist,
                 metadata.album.clone().unwrap_or(String::new()),
                 metadata.title
-            ));
-            // TODO: Fare MD5 hashing con qualcosa Rust standard... ma avevo questo dall'altro lato
+            );
             if !id.is_empty() {
-                let md5 = Core::HashAlgorithmProvider::OpenAlgorithm(
-                    &Core::HashAlgorithmNames::Md5().unwrap(),
-                )
-                .unwrap();
-                let id_buf =
-                    CryptographicBuffer::ConvertStringToBinary(&id, BinaryStringEncoding::Utf8)
-                        .unwrap();
-                metadata.id = Some(
-                    CryptographicBuffer::EncodeToHexString(&md5.HashData(&id_buf).unwrap())
-                        .unwrap()
-                        .to_string(),
-                );
+                let md5 = md5::compute(id);
+                metadata.id = Some(String::from_utf8(md5.to_ascii_lowercase()).unwrap());
             }
 
             if let Ok(thumbnail) = info.Thumbnail() {
