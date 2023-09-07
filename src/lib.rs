@@ -6,6 +6,7 @@ mod owo;
 
 mod jsplayer;
 mod jsplayermanager;
+mod jstypes;
 
 #[napi]
 pub async fn get_player_manager() -> JsPlayerManager {

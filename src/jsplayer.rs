@@ -3,11 +3,13 @@ use std::sync::Arc;
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
-use windows::Media::{MediaPlaybackAutoRepeatMode, Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus};
+use windows::Media::{
+    Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPlaybackAutoRepeatMode,
+};
 
-use crate::owo::{
-    player::{Player, PlayerEvent},
-    types::{Position, Status},
+use crate::{
+    jstypes::{JsPosition, JsStatus},
+    owo::player::{Player, PlayerEvent},
 };
 
 #[napi(js_name = "Player")]
@@ -43,8 +45,8 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn get_status(&self) -> Status {
-        self.internal.player.lock().await.get_status().await
+    pub async fn get_status(&self) -> JsStatus {
+        JsStatus::from(self.internal.player.lock().await.get_status().await)
     }
 
     #[napi]
@@ -75,13 +77,25 @@ impl JsPlayer {
     #[napi]
     pub async fn get_playback_status(&self) -> String {
         match self.internal.player.lock().await.get_playback_status() {
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => String::from("Playing"),
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => String::from("Paused"),
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => String::from("Stopped"),
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => String::from("Changing"),
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => String::from("Closed"),
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => String::from("Opened"),
-            _ => String::from("Unknown")
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+                String::from("Playing")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
+                String::from("Paused")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
+                String::from("Stopped")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
+                String::from("Changing")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => {
+                String::from("Closed")
+            }
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => {
+                String::from("Opened")
+            }
+            _ => String::from("Unknown"),
         }
     }
 
@@ -155,12 +169,17 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn get_position(&self, wants_current_position: bool) -> Option<Position> {
-        self.internal
+    pub async fn get_position(&self, wants_current_position: bool) -> Option<JsPosition> {
+        if let Some(position) = self
+            .internal
             .player
             .lock()
             .await
             .get_position(wants_current_position)
             .await
+        {
+            return Some(JsPosition::from(position));
+        }
+        None
     }
 }

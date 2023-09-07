@@ -1,14 +1,11 @@
 use chrono::{DateTime, Utc};
-use napi_derive::napi;
 
-#[napi(object)]
 #[derive(Debug)]
 pub struct ArtData {
     pub data: Vec<u8>,
     pub mimetype: String,
 }
 
-#[napi(object)]
 #[derive(Debug)]
 pub struct Metadata {
     pub album: Option<String>,
@@ -22,7 +19,6 @@ pub struct Metadata {
     pub title: String,
 }
 
-#[napi(object)]
 #[derive(Debug)]
 pub struct Capabilities {
     pub can_control: bool,
@@ -32,14 +28,12 @@ pub struct Capabilities {
     pub can_seek: bool,
 }
 
-#[napi(object)]
 #[derive(Debug)]
 pub struct Position {
     pub how_much: f64,
     pub when: DateTime<Utc>,
 }
 
-#[napi(object)]
 #[derive(Debug)]
 pub struct Status {
     pub metadata: Option<Metadata>,
