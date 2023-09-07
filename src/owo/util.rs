@@ -12,7 +12,6 @@ use windows::{
         GlobalSystemMediaTransportControlsSessionPlaybackStatus,
         GlobalSystemMediaTransportControlsSessionTimelineProperties,
     },
-    Security::Cryptography::{BinaryStringEncoding, Core, CryptographicBuffer},
     Storage::Streams::{self, DataReader},
     System,
 };

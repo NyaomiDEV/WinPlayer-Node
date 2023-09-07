@@ -30,7 +30,6 @@ features = [
     "Foundation_Collections",
     "Graphics_Imaging",
     "Media_Control",
-    "Security_Cryptography_Core",
     "Storage_Streams",
     "System"
 ]
