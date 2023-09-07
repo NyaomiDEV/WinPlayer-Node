@@ -5,7 +5,7 @@ use napi_derive::napi;
 #[derive(Debug)]
 pub struct ArtData {
     pub data: Vec<u8>,
-    pub mimetype: Vec<String>,
+    pub mimetype: String,
 }
 
 #[napi(object)]

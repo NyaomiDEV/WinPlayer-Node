@@ -253,7 +253,6 @@ pub fn get_session_metadata(
                     let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
                     let size = result_buffer.Length().unwrap();
                     let mut data: Vec<u8> = vec![0; size as usize];
-                    dbg!(&data.len());
                     data_reader.ReadBytes(data.as_mut()).unwrap();
 
                     stream.FlushAsync().unwrap().get().unwrap();
@@ -261,7 +260,7 @@ pub fn get_session_metadata(
 
                     metadata.art_data = Some(ArtData {
                         data,
-                        mimetype: vec![stream.ContentType().unwrap().to_string()],
+                        mimetype: stream.ContentType().unwrap().to_string(),
                     });
                 }
             }
