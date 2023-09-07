@@ -1,6 +1,6 @@
 use jsplayermanager::JsPlayerManager;
 use napi_derive::napi;
-use owo::{util::get_session_player_name};
+use owo::util::get_session_player_name;
 
 mod owo;
 
