@@ -241,6 +241,8 @@ pub fn get_session_metadata(
                     let mut data = Vec::with_capacity(result_buffer.Length().unwrap() as usize);
                     data_reader.ReadBytes(&mut data).unwrap();
 
+                    dbg!(&data);
+
                     metadata.art_data = Some(ArtData {
                         data,
                         mimetype: vec![stream.ContentType().unwrap().to_string()],
