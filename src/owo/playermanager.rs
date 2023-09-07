@@ -198,26 +198,35 @@ impl PlayerManager {
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();
+
                     if _aumid.is_empty() {
                         continue;
                     }
+
                     if !self.players.contains_key(&_aumid) {
                         continue;
                     }
-                    if session.GetPlaybackInfo().unwrap().PlaybackStatus().unwrap()
-                        == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
-                    {
-                        self.active_player_key = Some(_aumid.to_string());
-                        break;
+
+                    if let Ok(_info) = session.GetPlaybackInfo() {
+                        if let Ok(_status) = _info.PlaybackStatus() {
+                            if _status
+                                == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
+                            {
+                                self.active_player_key = Some(_aumid.to_string());
+                                break;
+                            }
+                        }
                     }
                 }
             }
+
             if self.active_player_key.is_none()
                 && preferred.is_some()
                 && self.players.contains_key(&preferred.clone().unwrap())
             {
                 self.active_player_key = preferred.clone();
             }
+
             if self.active_player_key.is_none()
                 && self.system_player_key.is_some()
                 && self
@@ -226,6 +235,7 @@ impl PlayerManager {
             {
                 self.active_player_key = preferred.clone();
             }
+
             if self.active_player_key.is_none() && !self.players.is_empty() {
                 self.active_player_key = Some(
                     self.players
@@ -236,7 +246,8 @@ impl PlayerManager {
                         .to_string(),
                 )
             }
-            if dbg!(!old.eq(&self.active_player_key)) {
+
+            if !old.eq(&self.active_player_key) {
                 if let Some(tx) = &self.tx {
                     let _ = tx.send(ManagerEvent::ActiveSessionChanged);
                 }
