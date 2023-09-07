@@ -308,7 +308,7 @@ impl Player {
     pub async fn set_position(&self, position_s: f64) -> bool {
         if let Ok(result) = self
             .session
-            .TryChangePlaybackPositionAsync((position_s * 1e+9f64) as i64)
+            .TryChangePlaybackPositionAsync((position_s * 1e+8f64) as i64)
         {
             return result.await.unwrap_or(false);
         }
