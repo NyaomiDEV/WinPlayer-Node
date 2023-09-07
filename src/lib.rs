@@ -7,6 +7,7 @@ mod owo;
 mod jsplayer;
 mod jsplayermanager;
 
+#[napi]
 pub async fn get_player_manager() -> JsPlayerManager {
     JsPlayerManager::get().await
 }
