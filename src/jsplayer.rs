@@ -130,8 +130,8 @@ impl JsPlayer {
     }
 
     #[napi]
-    pub async fn seek(&self, offset_us: i64) -> bool {
-        self.internal.player.lock().await.seek(offset_us).await
+    pub async fn seek(&self, offset_s: f64) -> bool {
+        self.internal.player.lock().await.seek(offset_s).await
     }
 
     #[napi]

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use windows::{
@@ -264,13 +266,16 @@ impl Player {
         None
     }
 
-    pub async fn seek(&self, offset_us: i64) -> bool {
+    pub async fn seek(&self, offset_s: f64) -> bool {
         if let Ok(timeline_properties) = self.session.GetTimelineProperties() {
-            if let Ok(position) = timeline_properties.Position() {
-                return self
-                    .set_position((position.Duration + offset_us) as f64 / 1000f64)
-                    .await;
-            }
+            let position = 'rt: {
+                if let Ok(_pos) = timeline_properties.Position() {
+                    let _duration: Duration = _pos.into();
+                    break 'rt _duration.as_secs_f64();
+                }
+                0f64
+            };
+            return self.set_position(position + offset_s).await;
         }
 
         false
@@ -278,9 +283,23 @@ impl Player {
 
     pub async fn seek_percentage(&self, percentage: f64) -> bool {
         if let Ok(timeline_properties) = self.session.GetTimelineProperties() {
-            let start_time = timeline_properties.StartTime().unwrap_or_default();
-            let end_time = timeline_properties.EndTime().unwrap_or_default();
-            let length = (end_time.Duration - start_time.Duration) as f64 / 1000.0;
+            let start_time = 'rt: {
+                if let Ok(_start) = timeline_properties.StartTime() {
+                    let _duration: Duration = _start.into();
+                    break 'rt _duration.as_secs_f64();
+                }
+                0f64
+            };
+
+            let end_time = 'rt: {
+                if let Ok(_end) = timeline_properties.EndTime() {
+                    let _duration: Duration = _end.into();
+                    break 'rt _duration.as_secs_f64();
+                }
+                0f64
+            };
+
+            let length = end_time - start_time;
             return self.set_position(length * percentage).await;
         }
         false
@@ -289,9 +308,8 @@ impl Player {
     pub async fn set_position(&self, position_s: f64) -> bool {
         if let Ok(result) = self
             .session
-            .TryChangePlaybackPositionAsync((position_s * 1000.0) as i64)
+            .TryChangePlaybackPositionAsync((position_s * 1e+9f64) as i64)
         {
-            // probabilmente non worka e la pos sara' wonky
             return result.await.unwrap_or(false);
         }
         false
