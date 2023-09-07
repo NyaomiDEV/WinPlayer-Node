@@ -1,5 +1,4 @@
 use std::time::Duration;
-use tokio::runtime::Runtime;
 
 use chrono::{DateTime, TimeZone, Utc};
 
@@ -178,11 +177,11 @@ pub fn get_session_capabilities(
     capabilities
 }
 
-pub async fn get_session_metadata(
+pub fn get_session_metadata(
     session: &GlobalSystemMediaTransportControlsSession,
 ) -> Option<Metadata> {
     let timeline_properties = session.GetTimelineProperties().unwrap();
-    match session.TryGetMediaPropertiesAsync().unwrap().await {
+    match session.TryGetMediaPropertiesAsync().unwrap().get() {
         Ok(info) => {
             let mut metadata = Metadata {
                 album: info.AlbumTitle().ok().map(|x| x.to_string()),
@@ -216,31 +215,26 @@ pub async fn get_session_metadata(
             }
 
             if let Ok(thumbnail) = info.Thumbnail() {
-                let _binding = thumbnail.OpenReadAsync().unwrap();
-                let stream = Runtime::new().unwrap().block_on(_binding).unwrap();
+                let stream = thumbnail.OpenReadAsync().unwrap().get().unwrap();
 
                 if stream.CanRead().unwrap() && stream.Size().unwrap() > 0 {
-                    let buffer =
-                        Streams::Buffer::Create(stream.Size().unwrap().try_into().unwrap())
-                            .unwrap();
+                    let result_buffer = {
+                        let buffer =
+                            Streams::Buffer::Create(stream.Size().unwrap().try_into().unwrap())
+                                .unwrap();
 
-                    let result_buffer = Runtime::new()
-                        .unwrap()
-                        .block_on(
-                            stream
-                                .ReadAsync(
-                                    &buffer,
-                                    stream.Size().unwrap().try_into().unwrap(),
-                                    Streams::InputStreamOptions::None,
-                                )
-                                .unwrap(),
-                        )
-                        .unwrap();
+                        stream
+                            .ReadAsync(
+                                &buffer,
+                                stream.Size().unwrap().try_into().unwrap(),
+                                Streams::InputStreamOptions::None,
+                            )
+                            .unwrap()
+                            .get()
+                            .unwrap()
+                    };
 
-                    let _ = Runtime::new()
-                        .unwrap()
-                        .block_on(stream.FlushAsync().unwrap())
-                        .unwrap();
+                    stream.FlushAsync().unwrap().get().unwrap();
                     stream.Close().unwrap();
 
                     let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
