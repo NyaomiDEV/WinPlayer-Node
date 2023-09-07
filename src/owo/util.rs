@@ -186,19 +186,35 @@ pub fn get_session_metadata(
             let mut metadata = Metadata {
                 album: info.AlbumTitle().ok().map(|x| x.to_string()),
                 album_artist: info.AlbumArtist().ok().map(|x| x.to_string()),
-                album_artists: (|| {
-                    let _artist = info.AlbumArtist().ok().map(|x| x.to_string());
-                    _artist.as_ref()?;
-                    Some(vec![_artist.unwrap()])
-                })(),
+                album_artists: 'rt: {
+                    if let Ok(artist) = info.AlbumArtist() {
+                        break 'rt Some(vec![artist.to_string()]);
+                    }
+                    None
+                },
                 artist: info.Artist().unwrap_or_default().to_string(),
                 artists: vec![info.Artist().unwrap_or_default().to_string()],
                 art_data: None,
                 id: None, // md5 di String(album_artist + artist + album + title)
-                length: (timeline_properties.EndTime().unwrap_or_default().Duration
-                    - timeline_properties.StartTime().unwrap_or_default().Duration)
-                    as f64
-                    / 1000f64,
+                length: {
+                    let start_time = 'rt: {
+                        if let Ok(_start) = timeline_properties.StartTime() {
+                            let _duration: Duration = _start.into();
+                            break 'rt _duration.as_secs_f64();
+                        }
+                        0f64
+                    };
+
+                    let end_time = 'rt: {
+                        if let Ok(_start) = timeline_properties.StartTime() {
+                            let _duration: Duration = _start.into();
+                            break 'rt _duration.as_secs_f64();
+                        }
+                        0f64
+                    };
+
+                    end_time - start_time
+                },
                 title: info.Title().unwrap_or_default().to_string(),
             };
 
