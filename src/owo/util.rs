@@ -206,8 +206,8 @@ pub fn get_session_metadata(
                     };
 
                     let end_time = 'rt: {
-                        if let Ok(_start) = timeline_properties.StartTime() {
-                            let _duration: Duration = _start.into();
+                        if let Ok(_end) = timeline_properties.EndTime() {
+                            let _duration: Duration = _end.into();
                             break 'rt _duration.as_secs_f64();
                         }
                         0f64
