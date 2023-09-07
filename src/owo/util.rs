@@ -213,7 +213,7 @@ pub async fn get_session_metadata(
             );
             if !id.is_empty() {
                 let md5 = md5::compute(id);
-                metadata.id = Some(String::from_utf8(md5.to_ascii_lowercase()).unwrap());
+                metadata.id = Some(format!("{:x}", md5).to_string());
             }
 
             if let Ok(thumbnail) = info.Thumbnail() {
