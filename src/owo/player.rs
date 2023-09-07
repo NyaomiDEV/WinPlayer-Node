@@ -125,7 +125,7 @@ impl Player {
         let timeline_properties = self.session.GetTimelineProperties().ok();
 
         Status {
-            metadata: get_session_metadata(&self.session).await,
+            metadata: get_session_metadata(&self.session),
             capabilities: get_session_capabilities(&self.session),
             status: 'rt: {
                 if playback_info.is_err() {
