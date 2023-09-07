@@ -158,6 +158,7 @@ impl PlayerManager {
     }
 
     pub fn update_sessions(&mut self, denylist: Option<&Vec<String>>) {
+        let mut player_keys: Vec<String> = Vec::new();
         if let Ok(sessions) = self.session_manager.GetSessions() {
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
@@ -170,12 +171,21 @@ impl PlayerManager {
                         continue;
                     }
 
+                    player_keys.push(_aumid.clone());
+
                     if !self.players.contains_key(&_aumid) {
                         let player = Arc::new(Mutex::new(Player::new(session, _aumid.clone())));
                         self.players.insert(_aumid.clone(), player);
                     }
                 }
             }
+
+            for key in self.players.clone().keys() {
+                if !player_keys.contains(key) {
+                    self.players.remove(key);
+                }
+            }
+
             self.update_active_player(self.active_player_key.clone());
         }
     }
@@ -188,15 +198,12 @@ impl PlayerManager {
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();
-
                     if _aumid.is_empty() {
                         continue;
                     }
-
                     if !self.players.contains_key(&_aumid) {
                         continue;
                     }
-
                     if session.GetPlaybackInfo().unwrap().PlaybackStatus().unwrap()
                         == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
                     {
@@ -205,20 +212,20 @@ impl PlayerManager {
                     }
                 }
             }
-
-            if self.active_player_key.is_none() && preferred.is_some() {
-                self.active_player_key = Some(preferred.clone().unwrap());
+            if self.active_player_key.is_none()
+                && preferred.is_some()
+                && self.players.contains_key(&preferred.clone().unwrap())
+            {
+                self.active_player_key = preferred.clone();
             }
-
             if self.active_player_key.is_none()
                 && self.system_player_key.is_some()
                 && self
                     .players
                     .contains_key::<String>(&self.system_player_key.clone().unwrap())
             {
-                self.active_player_key = Some(preferred.clone().unwrap());
+                self.active_player_key = preferred.clone();
             }
-
             if self.active_player_key.is_none() && !self.players.is_empty() {
                 self.active_player_key = Some(
                     self.players
@@ -229,8 +236,7 @@ impl PlayerManager {
                         .to_string(),
                 )
             }
-
-            if !old.eq(&self.active_player_key.clone()) {
+            if dbg!(!old.eq(&self.active_player_key)) {
                 if let Some(tx) = &self.tx {
                     let _ = tx.send(ManagerEvent::ActiveSessionChanged);
                 }

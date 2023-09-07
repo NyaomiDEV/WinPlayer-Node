@@ -152,6 +152,7 @@ pub async fn get_session_player_name(aumid: &String) -> Option<String> {
 pub fn get_session_capabilities(
     session: &GlobalSystemMediaTransportControlsSession,
 ) -> Capabilities {
+    // TODO: fix this unwraps, make this function return an option
     let controls = session.GetPlaybackInfo().unwrap().Controls().unwrap();
 
     let mut capabilities = Capabilities {
@@ -159,14 +160,16 @@ pub fn get_session_capabilities(
             || controls.IsPauseEnabled().unwrap_or(false),
         can_go_next: controls.IsNextEnabled().unwrap_or(false),
         can_go_previous: controls.IsPreviousEnabled().unwrap_or(false),
-        can_seek: controls.IsPlaybackPositionEnabled().unwrap_or(false)
-            && session
-                .GetTimelineProperties()
-                .unwrap()
-                .EndTime()
-                .unwrap_or_default()
-                .Duration
-                != 0,
+        can_seek: {
+            let is_pp_enabled = controls.IsPlaybackPositionEnabled().unwrap_or(false);
+            let is_endtime = 'rt: {
+                if let Ok(p) = session.GetTimelineProperties() {
+                    break 'rt p.EndTime().unwrap_or_default().Duration != 0;
+                }
+                false
+            };
+            is_pp_enabled && is_endtime
+        },
         can_control: false,
     };
     capabilities.can_control = capabilities.can_play_pause

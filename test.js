@@ -16,7 +16,7 @@ async function main() {
 					if (!player)
 						console.log("manager: WTF?!");
 					else {
-						console.log("player attached:", await player.getAumid());
+						console.log("player attached:", await player?.getAumid());
 						eventPolling();
 					}
 					break;
@@ -28,14 +28,14 @@ async function main() {
 	}
 
 	async function eventPolling() {
-		while (evt = await player.pollNextEvent()) {
-			console.log("manager event", evt);
+		while (evt = await player?.pollNextEvent()) {
+			console.log("player event", evt);
 			switch (evt) {
 				case "PlaybackInfoChanged":
-					console.log(await player.getStatus())
+					console.log("status", await player?.getStatus())
 					break;
 				case "TimelinePropertiesChanged":
-					console.log(await player.getStatus(), await player.getPosition(false))
+					console.log("status and pos", await player?.getStatus(), await player?.getPosition(false))
 					break;
 			}
 		}
