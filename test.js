@@ -1,4 +1,4 @@
-const winPlayer = require("");
+const winPlayer = require(".");
 
 const playerManager = await winPlayer.getPlayerManager();
 let player;
