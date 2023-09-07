@@ -1,5 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc::{unbounded_channel, UnboundedReceiver}};
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    Mutex,
+};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -11,9 +14,11 @@ use windows::{
 
 use crate::owo::player::Player;
 
+#[allow(clippy::enum_variant_names)]
 pub enum ManagerEvent {
     SessionsChanged,
-    CurrentSessionChanged,
+    ActiveSessionChanged,
+    SystemSessionChanged,
 }
 
 struct EventToken {
@@ -26,6 +31,8 @@ pub struct PlayerManager {
     active_player_key: Option<String>,
     system_player_key: Option<String>,
     players: HashMap<String, Arc<Mutex<Player>>>,
+
+    tx: Option<UnboundedSender<ManagerEvent>>,
 
     event_tokens: Option<EventToken>,
 }
@@ -40,6 +47,8 @@ impl PlayerManager {
                     players: HashMap::new(),
                     active_player_key: None,
                     system_player_key: None,
+
+                    tx: None,
 
                     event_tokens: None,
                 });
@@ -67,7 +76,7 @@ impl PlayerManager {
         let current_session_changed_handler = TypedEventHandler::new({
             let tx = tx.clone();
             move |_, _| {
-                let _ = tx.send(ManagerEvent::CurrentSessionChanged);
+                let _ = tx.send(ManagerEvent::SystemSessionChanged);
                 Ok(())
             }
         });
@@ -88,6 +97,8 @@ impl PlayerManager {
 
         let _ = tx.send(ManagerEvent::SessionsChanged);
 
+        self.tx = Some(tx);
+
         rx
     }
 
@@ -102,6 +113,7 @@ impl PlayerManager {
                 .current_session_changed_token,
         );
 
+        self.tx = None;
         self.event_tokens = None;
     }
 
@@ -147,7 +159,6 @@ impl PlayerManager {
 
     pub fn update_sessions(&mut self, denylist: Option<&Vec<String>>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
-            self.active_player_key = None;
             for session in sessions {
                 if let Ok(aumid) = session.SourceAppUserModelId() {
                     let _aumid = aumid.to_string();
@@ -159,36 +170,69 @@ impl PlayerManager {
                         continue;
                     }
 
-                    let playback_status = 'rt: {
-                        if let Ok(playback_info) = session.GetPlaybackInfo() {
-                            if let Ok(playback_status) = playback_info.PlaybackStatus() {
-                                break 'rt playback_status;
-                            }
-                        }
-                        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
-                    };
-
-                    let is_preferred = 'rt: {
-                        if let Some(result) = self.active_player_key.clone() {
-                            if result.eq(&_aumid) {
-                                break 'rt true;
-                            }
-                        }
-                        false
-                    };
-
                     if !self.players.contains_key(&_aumid) {
                         let player = Arc::new(Mutex::new(Player::new(session, _aumid.clone())));
                         self.players.insert(_aumid.clone(), player);
                     }
+                }
+            }
+            self.update_active_player(self.active_player_key.clone());
+        }
+    }
 
-                    if is_preferred
-                        || playback_status
-                            == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
+    fn update_active_player(&mut self, preferred: Option<String>) {
+        if let Ok(sessions) = self.session_manager.GetSessions() {
+            let old = self.active_player_key.clone();
+            self.active_player_key = None;
+
+            for session in sessions {
+                if let Ok(aumid) = session.SourceAppUserModelId() {
+                    let _aumid = aumid.to_string();
+
+                    if _aumid.is_empty() {
+                        continue;
+                    }
+
+                    if !self.players.contains_key(&_aumid) {
+                        continue;
+                    }
+
+                    if session.GetPlaybackInfo().unwrap().PlaybackStatus().unwrap()
+                        == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
                     {
-                        self.active_player_key = Some(_aumid);
+                        self.active_player_key = Some(_aumid.to_string());
                         break;
                     }
+                }
+            }
+
+            if self.active_player_key.is_none() && preferred.is_some() {
+                self.active_player_key = Some(preferred.clone().unwrap());
+            }
+
+            if self.active_player_key.is_none()
+                && self.system_player_key.is_some()
+                && self
+                    .players
+                    .contains_key::<String>(&self.system_player_key.clone().unwrap())
+            {
+                self.active_player_key = Some(preferred.clone().unwrap());
+            }
+
+            if self.active_player_key.is_none() && !self.players.is_empty() {
+                self.active_player_key = Some(
+                    self.players
+                        .keys()
+                        .collect::<Vec<_>>()
+                        .get(0)
+                        .unwrap()
+                        .to_string(),
+                )
+            }
+
+            if !old.eq(&self.active_player_key.clone()) {
+                if let Some(tx) = &self.tx {
+                    let _ = tx.send(ManagerEvent::ActiveSessionChanged);
                 }
             }
         }

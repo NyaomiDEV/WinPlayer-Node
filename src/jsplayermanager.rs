@@ -32,7 +32,8 @@ impl JsPlayerManager {
     #[napi]
     pub async unsafe fn poll_next_event(&mut self) -> String {
         match self.internal.rx.recv().await.unwrap() {
-            ManagerEvent::CurrentSessionChanged => String::from("CurrentSessionChanged"),
+            ManagerEvent::ActiveSessionChanged => String::from("ActiveSessionChanged"),
+            ManagerEvent::SystemSessionChanged => String::from("SystemSessionChanged"),
             ManagerEvent::SessionsChanged => String::from("SessionsChanged"),
         }
     }

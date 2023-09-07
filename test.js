@@ -8,11 +8,10 @@ async function main() {
 		while (evt = await playerManager.pollNextEvent()) {
 			console.log("manager event", evt);
 			switch (evt) {
-				case "CurrentSessionChanged":
+				case "SystemSessionChanged":
 					playerManager.updateSystemSession();
 					break;
-				case "SessionsChanged":
-					playerManager.updateSessions(null);
+				case "ActiveSessionChanged":
 					player = await playerManager.getActiveSession();
 					if (!player)
 						console.log("manager: WTF?!");
@@ -20,6 +19,9 @@ async function main() {
 						console.log("player attached:", await player.getAumid());
 						eventPolling();
 					}
+					break;
+				case "SessionsChanged":
+					playerManager.updateSessions(null);
 					break;
 			}
 		}

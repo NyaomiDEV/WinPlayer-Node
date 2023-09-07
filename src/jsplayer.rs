@@ -3,7 +3,7 @@ use std::sync::Arc;
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
-use windows::Media::MediaPlaybackAutoRepeatMode;
+use windows::Media::{MediaPlaybackAutoRepeatMode, Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus};
 
 use crate::owo::{
     player::{Player, PlayerEvent},
@@ -70,6 +70,19 @@ impl JsPlayer {
     #[napi]
     pub async fn stop(&self) -> bool {
         self.internal.player.lock().await.stop().await
+    }
+
+    #[napi]
+    pub async fn get_playback_status(&self) -> String {
+        match self.internal.player.lock().await.get_playback_status() {
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => String::from("Playing"),
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => String::from("Paused"),
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => String::from("Stopped"),
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => String::from("Changing"),
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => String::from("Closed"),
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => String::from("Opened"),
+            _ => String::from("Unknown")
+        }
     }
 
     #[napi]

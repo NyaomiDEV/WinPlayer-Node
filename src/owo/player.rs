@@ -209,6 +209,15 @@ impl Player {
         false
     }
 
+    pub fn get_playback_status(&self) -> GlobalSystemMediaTransportControlsSessionPlaybackStatus {
+        if let Ok(playback_info) = self.session.GetPlaybackInfo() {
+            if let Ok(playback_status) = playback_info.PlaybackStatus() {
+                return playback_status;
+            }
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
+    }
+
     pub async fn next(&self) -> bool {
         if let Ok(result) = self.session.TrySkipNextAsync() {
             return result.await.unwrap_or(false);
