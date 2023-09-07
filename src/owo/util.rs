@@ -236,7 +236,7 @@ pub fn get_session_metadata(
 
                     let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
                     let size = dbg!(result_buffer.Length().unwrap());
-                    let mut data: Vec<u8> = Vec::with_capacity(size as usize);
+                    let mut data: Vec<u8> = vec![0; size as usize];
                     dbg!(&data, &data.len());
                     data_reader.ReadBytes(data.as_mut()).unwrap();
 
