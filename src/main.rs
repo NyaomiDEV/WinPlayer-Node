@@ -20,8 +20,8 @@ async fn main() {
                 // just to test if it works
                 sleep(Duration::from_millis(100)).await;
                 if let Some(session) = player_manager.get_active_session() {
-                    println!("{}", session.get_aumid());
-                    session.pause().await;
+                    println!("{}", session.lock().await.get_aumid());
+                    session.lock().await.pause().await;
                 } else {
                     println!("No session 💀")
                 }

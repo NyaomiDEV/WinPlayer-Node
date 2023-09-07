@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
+use tokio::sync::{Mutex, mpsc::{unbounded_channel, UnboundedReceiver}};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -25,7 +25,7 @@ pub struct PlayerManager {
 
     active_player_key: Option<String>,
     system_player_key: Option<String>,
-    players: HashMap<String, Arc<Player>>,
+    players: HashMap<String, Arc<Mutex<Player>>>,
 
     event_tokens: Option<EventToken>,
 }
@@ -105,14 +105,14 @@ impl PlayerManager {
         self.event_tokens = None;
     }
 
-    pub fn get_active_session(&self) -> Option<Arc<Player>> {
+    pub fn get_active_session(&self) -> Option<Arc<Mutex<Player>>> {
         if let Some(player_key) = &self.active_player_key {
             return Some(self.players.get(player_key)?.clone());
         }
         None
     }
 
-    pub fn get_session(&self, aumid: &String) -> Option<Arc<Player>> {
+    pub fn get_session(&self, aumid: &String) -> Option<Arc<Mutex<Player>>> {
         Some(self.players.get(aumid)?.clone())
     }
 
@@ -123,7 +123,7 @@ impl PlayerManager {
             .collect::<Vec<String>>()
     }
 
-    pub fn get_system_session(&self) -> Option<Arc<Player>> {
+    pub fn get_system_session(&self) -> Option<Arc<Mutex<Player>>> {
         if let Some(player_key) = &self.system_player_key {
             return Some(self.players.get(player_key)?.clone());
         }
@@ -178,7 +178,7 @@ impl PlayerManager {
                     };
 
                     if !self.players.contains_key(&_aumid) {
-                        let player = Arc::new(Player::new(session, _aumid.clone()));
+                        let player = Arc::new(Mutex::new(Player::new(session, _aumid.clone())));
                         self.players.insert(_aumid.clone(), player);
                     }
 

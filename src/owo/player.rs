@@ -13,6 +13,7 @@ use crate::owo::types::{Position, Status};
 
 use crate::owo::util::{compute_position, get_session_capabilities, get_session_metadata};
 
+#[allow(clippy::enum_variant_names)]
 pub enum PlayerEvent {
     PlaybackInfoChanged,
     MediaPropertiesChanged,
@@ -35,7 +36,7 @@ pub struct Player {
 impl Player {
     pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
         Player {
-            session: session.clone(),
+            session,
             aumid,
 
             event_tokens: None,

@@ -6,8 +6,8 @@ use crate::owo::playermanager::{PlayerManager, ManagerEvent};
 
 #[napi(js_name = "PlayerManager")]
 pub struct JsPlayerManager {
-    player_manager: PlayerManager,
-    rx: UnboundedReceiver<ManagerEvent>
+    pub(crate) player_manager: PlayerManager,
+    pub(crate) rx: UnboundedReceiver<ManagerEvent>
 }
 
 #[napi]
@@ -21,17 +21,17 @@ impl JsPlayerManager {
     }
 
     #[napi]
-    pub fn get_active_session(&self) -> Option<JsPlayer> {
+    pub async fn get_active_session(&self) -> Option<JsPlayer> {
         if let Some(player) = self.player_manager.get_active_session() {
-            return Some(JsPlayer::wrap_player(player));
+            return Some(JsPlayer::wrap_player(player).await);
         }
         None
     }
 
     #[napi]
-    pub fn get_session(&self, aumid: String) -> Option<JsPlayer> {
+    pub async fn get_session(&self, aumid: String) -> Option<JsPlayer> {
         if let Some(player) = self.player_manager.get_session(&aumid) {
-            return Some(JsPlayer::wrap_player(player));
+            return Some(JsPlayer::wrap_player(player).await);
         }
         None
     }
@@ -42,9 +42,9 @@ impl JsPlayerManager {
     }
 
     #[napi]
-    pub fn get_system_session(&self) -> Option<JsPlayer> {
+    pub async fn get_system_session(&self) -> Option<JsPlayer> {
         if let Some(player) = self.player_manager.get_system_session() {
-            return Some(JsPlayer::wrap_player(player)); // TECNICAMENTE come lo prendiamo l'owned?
+            return Some(JsPlayer::wrap_player(player).await);
         }
         None
     }
