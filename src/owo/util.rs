@@ -221,58 +221,76 @@ pub fn get_session_metadata(
     if let Ok(timeline_properties) = session.GetTimelineProperties() {
         if let Ok(media_properties) = session.TryGetMediaPropertiesAsync() {
             if let Ok(info) = media_properties.get() {
-                let mut metadata = Metadata {
-                    album: info.AlbumTitle().ok().map(|x| x.to_string()),
-                    album_artist: info.AlbumArtist().ok().map(|x| x.to_string()),
-                    album_artists: 'rt: {
-                        if let Ok(artist) = info.AlbumArtist() {
-                            break 'rt Some(vec![artist.to_string()]);
-                        }
-                        None
-                    },
-                    artist: info.Artist().unwrap_or_default().to_string(),
-                    artists: vec![info.Artist().unwrap_or_default().to_string()],
-                    art_data: None,
-                    id: None,
-                    length: {
-                        let start_time = 'rt: {
-                            if let Ok(_start) = timeline_properties.StartTime() {
-                                let _duration: Duration = _start.into();
-                                break 'rt _duration.as_secs_f64();
-                            }
-                            0f64
-                        };
+                let title = info.Title().unwrap_or_default().to_string();
 
-                        let end_time = 'rt: {
-                            if let Ok(_end) = timeline_properties.EndTime() {
-                                let _duration: Duration = _end.into();
-                                break 'rt _duration.as_secs_f64();
-                            }
-                            0f64
-                        };
+                let album = info.AlbumTitle().ok().map(|x| x.to_string());
 
-                        end_time - start_time
-                    },
-                    title: info.Title().unwrap_or_default().to_string(),
+                let album_artist = info.AlbumArtist().ok().map(|x| x.to_string());
+
+                let album_artists = 'rt: {
+                    if let Ok(artist) = info.AlbumArtist() {
+                        break 'rt Some(vec![artist.to_string()]);
+                    }
+                    None
                 };
 
-                let id = format!(
-                    "{}{}{}{}",
-                    metadata.album_artist.clone().unwrap_or(String::new()),
-                    metadata.artist,
-                    metadata.album.clone().unwrap_or(String::new()),
-                    metadata.title
-                );
-                if !id.is_empty() {
-                    let md5 = md5::compute(id);
-                    metadata.id = Some(format!("{:x}", md5).to_string());
-                }
+                let artist = info.Artist().unwrap_or_default().to_string();
 
-                if let Ok(thumbnail) = info.Thumbnail() {
-                    metadata.art_data = get_cover_art_data(thumbnail);
-                }
+                let artists = vec![info.Artist().unwrap_or_default().to_string()];
 
-                return Some(metadata);
+                let art_data = 'rt: {
+                    if let Ok(thumbnail) = info.Thumbnail() {
+                        break 'rt get_cover_art_data(thumbnail);
+                    }
+                    None
+                };
+
+                let id = 'rt: {
+                    let id = format!(
+                        "{}{}{}{}",
+                        album_artist.clone().unwrap_or(String::new()),
+                        artist,
+                        album.clone().unwrap_or(String::new()),
+                        title
+                    );
+                    if !id.is_empty() {
+                        let md5 = md5::compute(id);
+                        break 'rt Some(format!("{:x}", md5).to_string());
+                    }
+                    None
+                };
+
+                let length = {
+                    let start_time = 'rt: {
+                        if let Ok(_start) = timeline_properties.StartTime() {
+                            let _duration: Duration = _start.into();
+                            break 'rt _duration.as_secs_f64();
+                        }
+                        0f64
+                    };
+
+                    let end_time = 'rt: {
+                        if let Ok(_end) = timeline_properties.EndTime() {
+                            let _duration: Duration = _end.into();
+                            break 'rt _duration.as_secs_f64();
+                        }
+                        0f64
+                    };
+
+                    end_time - start_time
+                };
+
+                return Some(Metadata {
+                    album,
+                    album_artist,
+                    album_artists,
+                    artist,
+                    artists,
+                    art_data,
+                    id,
+                    length,
+                    title,
+                });
             }
         }
     }
