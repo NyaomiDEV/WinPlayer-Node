@@ -10,7 +10,8 @@
   },
   "scripts": {
     "build": "napi build --release",
-    "build:debug": "napi build"
+    "build:debug": "napi build",
+    "install": "yarn build"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.16.3"
