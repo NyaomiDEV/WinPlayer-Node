@@ -299,7 +299,10 @@ pub fn get_session_metadata(
                                         let mut data: Vec<u8> = vec![0; size as usize];
                                         data_reader.ReadBytes(data.as_mut()).unwrap_or_default();
 
-                                        stream.FlushAsync().unwrap().get().unwrap_or_default();
+                                        if let Ok(_async) = stream.FlushAsync() {
+                                            _async.get().unwrap_or_default();
+                                        }
+
                                         stream.Close().unwrap_or_default();
 
                                         metadata.art_data = Some(ArtData {

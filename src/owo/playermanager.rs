@@ -199,30 +199,28 @@ impl PlayerManager {
             }
 
             if self.active_player_key.is_none()
-                && preferred.is_some()
-                && self.players.contains_key(&preferred.clone().unwrap())
+                && self
+                    .players
+                    .contains_key(&preferred.clone().unwrap_or(String::from("")))
             {
                 self.active_player_key = preferred.clone();
             }
 
             if self.active_player_key.is_none()
-                && self.system_player_key.is_some()
-                && self
-                    .players
-                    .contains_key::<String>(&self.system_player_key.clone().unwrap())
+                && self.players.contains_key::<String>(
+                    &self.system_player_key.clone().unwrap_or(String::from("")),
+                )
             {
                 self.active_player_key = preferred.clone();
             }
 
             if self.active_player_key.is_none() && !self.players.is_empty() {
-                self.active_player_key = Some(
-                    self.players
-                        .keys()
-                        .collect::<Vec<_>>()
-                        .get(0)
-                        .unwrap()
-                        .to_string(),
-                )
+                self.active_player_key = 'rt: {
+                    if let Some(key) = self.players.keys().collect::<Vec<_>>().get(0) {
+                        break 'rt Some(key.to_string());
+                    }
+                    None
+                }
             }
 
             if !old.eq(&self.active_player_key) {
@@ -237,8 +235,8 @@ impl Drop for PlayerManager {
         let _ = self
             .session_manager
             .RemoveSessionsChanged(self.event_tokens.sessions_changed_token);
-        let _ = self.session_manager.RemoveCurrentSessionChanged(
-            self.event_tokens.current_session_changed_token,
-        );
+        let _ = self
+            .session_manager
+            .RemoveCurrentSessionChanged(self.event_tokens.current_session_changed_token);
     }
 }
