@@ -9,8 +9,8 @@
     "name": "index"
   },
   "scripts": {
-    "build": "napi build --release",
-    "build:debug": "napi build",
+    "build": "yarn napi build --release",
+    "build:debug": "yarn napi build",
     "postinstall": "yarn build"
   },
   "devDependencies": {
