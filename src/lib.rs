@@ -1,7 +1,7 @@
 use jsplayermanager::JsPlayerManager;
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
-use owo::{util::get_session_player_name, playermanager::PlayerManager};
+use owo::{playermanager::PlayerManager, util::get_session_player_name};
 
 mod owo;
 
@@ -10,9 +10,11 @@ mod jsplayermanager;
 mod jstypes;
 
 #[napi]
-pub async fn get_player_manager() -> JsPlayerManager {
-    let player_manager = PlayerManager::new().await.unwrap();
-    JsPlayerManager::new(External::new(player_manager))
+pub async fn get_player_manager() -> Option<JsPlayerManager> {
+    if let Some(player_manager) = PlayerManager::new().await {
+        return Some(JsPlayerManager::new(External::new(player_manager)));
+    }
+    None
 }
 
 #[napi]

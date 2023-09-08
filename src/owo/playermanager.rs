@@ -62,10 +62,10 @@ impl PlayerManager {
 
                 let sessions_changed_token = session_manager
                     .SessionsChanged(&sessions_changed_handler)
-                    .unwrap();
+                    .unwrap_or_default();
                 let current_session_changed_token = session_manager
                     .CurrentSessionChanged(&current_session_changed_handler)
-                    .unwrap();
+                    .unwrap_or_default();
 
                 let event_tokens = EventToken {
                     sessions_changed_token,

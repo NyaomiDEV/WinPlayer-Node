@@ -28,6 +28,7 @@ struct EventToken {
     timeline_properties_changed_token: EventRegistrationToken,
 }
 
+#[allow(dead_code)] // per ora??
 pub struct Player {
     session: GlobalSystemMediaTransportControlsSession,
     aumid: String,
@@ -68,13 +69,13 @@ impl Player {
 
         let playback_info_changed_token = session
             .PlaybackInfoChanged(&playback_info_changed_handler)
-            .unwrap();
+            .unwrap_or_default();
         let media_properties_changed_token = session
             .MediaPropertiesChanged(&media_properties_changed_handler)
-            .unwrap();
+            .unwrap_or_default();
         let timeline_properties_changed_token = session
             .TimelinePropertiesChanged(&timeline_properties_changed_handler)
-            .unwrap();
+            .unwrap_or_default();
 
         let event_tokens = EventToken {
             playback_info_changed_token,
@@ -99,53 +100,68 @@ impl Player {
 
     pub async fn get_status(&self) -> Status {
         let playback_info = self.session.GetPlaybackInfo();
-        let timeline_properties = self.session.GetTimelineProperties().ok();
+        let timeline_properties = self.session.GetTimelineProperties();
 
         Status {
             metadata: get_session_metadata(&self.session),
             capabilities: get_session_capabilities(&self.session),
             status: 'rt: {
-                if playback_info.is_err() {
-                    break 'rt String::from("Stopped");
-                }
-                let status = playback_info.as_ref().unwrap().PlaybackStatus();
-                match status {
-                    Ok(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing) => {
-                        String::from("Playing")
+                if let Ok(playback_info) = playback_info.as_ref() {
+                    if let Ok(status) = playback_info.PlaybackStatus() {
+                        match status {
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+                                break 'rt String::from("Playing")
+                            }
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
+                                break 'rt String::from("Paused")
+                            }
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
+                                break 'rt String::from("Stopped")
+                            }
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
+                                break 'rt String::from("Changing")
+                            }
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => {
+                                break 'rt String::from("Closed")
+                            }
+                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => {
+                                break 'rt String::from("Opened")
+                            }
+                            _ => break 'rt String::from("Unknown"),
+                        }
                     }
-                    Ok(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused) => {
-                        String::from("Paused")
-                    }
-                    _ => String::from("Stopped"),
                 }
+                String::from("Unknown")
             },
             is_loop: 'rt: {
-                if playback_info.is_err() {
-                    break 'rt String::from("None");
+                if let Ok(playback_info) = playback_info.as_ref() {
+                    if let Ok(_mode) = playback_info.AutoRepeatMode() {
+                        if let Ok(value) = _mode.Value() {
+                            match value {
+                                MediaPlaybackAutoRepeatMode::List => {
+                                    break 'rt String::from("List")
+                                }
+                                MediaPlaybackAutoRepeatMode::Track => {
+                                    break 'rt String::from("Track")
+                                }
+                                _ => break 'rt String::from("None"),
+                            }
+                        }
+                    }
                 }
-                let _mode = playback_info.as_ref().unwrap().AutoRepeatMode();
-                if _mode.is_err() {
-                    break 'rt String::from("None");
-                }
-                match _mode.unwrap().Value() {
-                    Ok(MediaPlaybackAutoRepeatMode::List) => String::from("List"),
-                    Ok(MediaPlaybackAutoRepeatMode::Track) => String::from("Track"),
-                    _ => String::from("None"),
-                }
+                String::from("None")
             },
             shuffle: 'rt: {
-                if playback_info.is_err() {
-                    break 'rt false;
+                if let Ok(playback_info) = playback_info.as_ref() {
+                    if let Ok(shuffle) = playback_info.IsShuffleActive() {
+                        break 'rt shuffle.Value().unwrap_or(false);
+                    }
                 }
-                let _shuffle = playback_info.as_ref().unwrap().IsShuffleActive().ok();
-                if _shuffle.is_none() {
-                    break 'rt false;
-                }
-                _shuffle.unwrap().Value().unwrap_or(false)
+                false
             },
             volume: -1f64,
             elapsed: compute_position(
-                timeline_properties.as_ref(),
+                timeline_properties.ok().as_ref(),
                 playback_info.ok().as_ref(),
                 false,
             ),
