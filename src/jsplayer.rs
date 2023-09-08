@@ -3,9 +3,6 @@ use std::sync::Arc;
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
 use tokio::sync::Mutex;
-use windows::Media::{
-    Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPlaybackAutoRepeatMode,
-};
 
 use crate::{
     jstypes::{JsPosition, JsStatus},
@@ -68,27 +65,7 @@ impl JsPlayer {
 
     #[napi]
     pub async fn get_playback_status(&self) -> String {
-        match self.player.lock().await.get_playback_status() {
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
-                String::from("Playing")
-            }
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
-                String::from("Paused")
-            }
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
-                String::from("Stopped")
-            }
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
-                String::from("Changing")
-            }
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => {
-                String::from("Closed")
-            }
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => {
-                String::from("Opened")
-            }
-            _ => String::from("Unknown"),
-        }
+        self.player.lock().await.get_playback_status()
     }
 
     #[napi]
@@ -113,26 +90,12 @@ impl JsPlayer {
 
     #[napi]
     pub async fn set_repeat(&self, value: String) -> bool {
-        let _value = match value.as_str() {
-            "None" => MediaPlaybackAutoRepeatMode::None,
-            "List" => MediaPlaybackAutoRepeatMode::List,
-            "Track" => MediaPlaybackAutoRepeatMode::Track,
-            _ => MediaPlaybackAutoRepeatMode::None,
-        };
-        self.player.lock().await.set_repeat(_value).await
+        self.player.lock().await.set_repeat(value).await
     }
 
     #[napi]
-    pub async fn get_repeat(&self) -> Option<String> {
-        if let Some(repeat_mode) = self.player.lock().await.get_repeat() {
-            return Some(match repeat_mode {
-                MediaPlaybackAutoRepeatMode::None => String::from("None"),
-                MediaPlaybackAutoRepeatMode::List => String::from("List"),
-                MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
-                _ => String::from("None"),
-            });
-        }
-        None
+    pub async fn get_repeat(&self) -> String {
+        self.player.lock().await.get_repeat()
     }
 
     #[napi]

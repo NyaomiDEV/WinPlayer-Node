@@ -5,11 +5,14 @@ use chrono::{DateTime, TimeZone, Utc};
 use windows::{
     core::HSTRING,
     ApplicationModel,
-    Media::Control::{
-        GlobalSystemMediaTransportControlsSession,
-        GlobalSystemMediaTransportControlsSessionPlaybackInfo,
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
-        GlobalSystemMediaTransportControlsSessionTimelineProperties,
+    Media::{
+        Control::{
+            GlobalSystemMediaTransportControlsSession,
+            GlobalSystemMediaTransportControlsSessionPlaybackInfo,
+            GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+            GlobalSystemMediaTransportControlsSessionTimelineProperties,
+        },
+        MediaPlaybackAutoRepeatMode,
     },
     Storage::Streams::{self, DataReader},
     System,
@@ -23,6 +26,40 @@ fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i
     const TICKS_PER_MILLISECOND: i64 = 10000;
     const UNIX_TIMESTAMP_DIFFERENCE: i64 = 0x019DB1DED53E8000;
     (shitty_time - UNIX_TIMESTAMP_DIFFERENCE) / TICKS_PER_MILLISECOND
+}
+
+pub fn autorepeat_to_string(autorepeat: MediaPlaybackAutoRepeatMode) -> String {
+    match autorepeat {
+        MediaPlaybackAutoRepeatMode::List => String::from("List"),
+        MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
+        _ => String::from("None"),
+    }
+}
+
+pub fn playback_status_to_string(
+    status: GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+) -> String {
+    match status {
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+            String::from("Playing")
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
+            String::from("Paused")
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
+            String::from("Stopped")
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
+            String::from("Changing")
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => {
+            String::from("Closed")
+        }
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => {
+            String::from("Opened")
+        }
+        _ => String::from("Unknown")
+    }
 }
 
 pub fn compute_position(
@@ -194,92 +231,90 @@ pub fn get_session_metadata(
     if let Ok(timeline_properties) = session.GetTimelineProperties() {
         if let Ok(media_properties) = session.TryGetMediaPropertiesAsync() {
             if let Ok(info) = media_properties.get() {
-
-                    let mut metadata = Metadata {
-                        album: info.AlbumTitle().ok().map(|x| x.to_string()),
-                        album_artist: info.AlbumArtist().ok().map(|x| x.to_string()),
-                        album_artists: 'rt: {
-                            if let Ok(artist) = info.AlbumArtist() {
-                                break 'rt Some(vec![artist.to_string()]);
-                            }
-                            None
-                        },
-                        artist: info.Artist().unwrap_or_default().to_string(),
-                        artists: vec![info.Artist().unwrap_or_default().to_string()],
-                        art_data: None,
-                        id: None,
-                        length: {
-                            let start_time = 'rt: {
-                                if let Ok(_start) = timeline_properties.StartTime() {
-                                    let _duration: Duration = _start.into();
-                                    break 'rt _duration.as_secs_f64();
-                                }
-                                0f64
-                            };
-
-                            let end_time = 'rt: {
-                                if let Ok(_end) = timeline_properties.EndTime() {
-                                    let _duration: Duration = _end.into();
-                                    break 'rt _duration.as_secs_f64();
-                                }
-                                0f64
-                            };
-
-                            end_time - start_time
-                        },
-                        title: info.Title().unwrap_or_default().to_string(),
-                    };
-
-                    let id = format!(
-                        "{}{}{}{}",
-                        metadata.album_artist.clone().unwrap_or(String::new()),
-                        metadata.artist,
-                        metadata.album.clone().unwrap_or(String::new()),
-                        metadata.title
-                    );
-                    if !id.is_empty() {
-                        let md5 = md5::compute(id);
-                        metadata.id = Some(format!("{:x}", md5).to_string());
-                    }
-
-                    if let Ok(thumbnail) = info.Thumbnail() {
-                        // TODO: probably remove the unwrap hell from here
-                        let stream = thumbnail.OpenReadAsync().unwrap().get().unwrap();
-
-                        if stream.CanRead().unwrap() && stream.Size().unwrap() > 0 {
-                            let result_buffer = {
-                                let buffer = Streams::Buffer::Create(
-                                    stream.Size().unwrap().try_into().unwrap(),
-                                )
-                                .unwrap();
-
-                                stream
-                                    .ReadAsync(
-                                        &buffer,
-                                        stream.Size().unwrap().try_into().unwrap(),
-                                        Streams::InputStreamOptions::None,
-                                    )
-                                    .unwrap()
-                                    .get()
-                                    .unwrap()
-                            };
-
-                            let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
-                            let size = result_buffer.Length().unwrap();
-                            let mut data: Vec<u8> = vec![0; size as usize];
-                            data_reader.ReadBytes(data.as_mut()).unwrap();
-
-                            stream.FlushAsync().unwrap().get().unwrap();
-                            stream.Close().unwrap();
-
-                            metadata.art_data = Some(ArtData {
-                                data,
-                                mimetype: stream.ContentType().unwrap().to_string(),
-                            });
+                let mut metadata = Metadata {
+                    album: info.AlbumTitle().ok().map(|x| x.to_string()),
+                    album_artist: info.AlbumArtist().ok().map(|x| x.to_string()),
+                    album_artists: 'rt: {
+                        if let Ok(artist) = info.AlbumArtist() {
+                            break 'rt Some(vec![artist.to_string()]);
                         }
-                    }
+                        None
+                    },
+                    artist: info.Artist().unwrap_or_default().to_string(),
+                    artists: vec![info.Artist().unwrap_or_default().to_string()],
+                    art_data: None,
+                    id: None,
+                    length: {
+                        let start_time = 'rt: {
+                            if let Ok(_start) = timeline_properties.StartTime() {
+                                let _duration: Duration = _start.into();
+                                break 'rt _duration.as_secs_f64();
+                            }
+                            0f64
+                        };
 
-                    return Some(metadata);
+                        let end_time = 'rt: {
+                            if let Ok(_end) = timeline_properties.EndTime() {
+                                let _duration: Duration = _end.into();
+                                break 'rt _duration.as_secs_f64();
+                            }
+                            0f64
+                        };
+
+                        end_time - start_time
+                    },
+                    title: info.Title().unwrap_or_default().to_string(),
+                };
+
+                let id = format!(
+                    "{}{}{}{}",
+                    metadata.album_artist.clone().unwrap_or(String::new()),
+                    metadata.artist,
+                    metadata.album.clone().unwrap_or(String::new()),
+                    metadata.title
+                );
+                if !id.is_empty() {
+                    let md5 = md5::compute(id);
+                    metadata.id = Some(format!("{:x}", md5).to_string());
+                }
+
+                if let Ok(thumbnail) = info.Thumbnail() {
+                    // TODO: probably remove the unwrap hell from here
+                    let stream = thumbnail.OpenReadAsync().unwrap().get().unwrap();
+
+                    if stream.CanRead().unwrap() && stream.Size().unwrap() > 0 {
+                        let result_buffer = {
+                            let buffer =
+                                Streams::Buffer::Create(stream.Size().unwrap().try_into().unwrap())
+                                    .unwrap();
+
+                            stream
+                                .ReadAsync(
+                                    &buffer,
+                                    stream.Size().unwrap().try_into().unwrap(),
+                                    Streams::InputStreamOptions::None,
+                                )
+                                .unwrap()
+                                .get()
+                                .unwrap()
+                        };
+
+                        let data_reader = DataReader::FromBuffer(&result_buffer).unwrap();
+                        let size = result_buffer.Length().unwrap();
+                        let mut data: Vec<u8> = vec![0; size as usize];
+                        data_reader.ReadBytes(data.as_mut()).unwrap();
+
+                        stream.FlushAsync().unwrap().get().unwrap();
+                        stream.Close().unwrap();
+
+                        metadata.art_data = Some(ArtData {
+                            data,
+                            mimetype: stream.ContentType().unwrap().to_string(),
+                        });
+                    }
+                }
+
+                return Some(metadata);
             }
         }
     }

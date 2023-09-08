@@ -4,16 +4,15 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
-    Media::Control::{
-        GlobalSystemMediaTransportControlsSession,
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
-    },
+    Media::Control::GlobalSystemMediaTransportControlsSession,
     Media::MediaPlaybackAutoRepeatMode,
 };
 
 use crate::owo::types::{Position, Status};
 
 use crate::owo::util::{compute_position, get_session_capabilities, get_session_metadata};
+
+use super::util::{autorepeat_to_string, playback_status_to_string};
 
 #[allow(clippy::enum_variant_names)]
 pub enum PlayerEvent {
@@ -108,27 +107,7 @@ impl Player {
             status: 'rt: {
                 if let Ok(playback_info) = playback_info.as_ref() {
                     if let Ok(status) = playback_info.PlaybackStatus() {
-                        match status {
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
-                                break 'rt String::from("Playing")
-                            }
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => {
-                                break 'rt String::from("Paused")
-                            }
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => {
-                                break 'rt String::from("Stopped")
-                            }
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
-                                break 'rt String::from("Changing")
-                            }
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => {
-                                break 'rt String::from("Closed")
-                            }
-                            GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => {
-                                break 'rt String::from("Opened")
-                            }
-                            _ => break 'rt String::from("Unknown"),
-                        }
+                        break 'rt playback_status_to_string(status)
                     }
                 }
                 String::from("Unknown")
@@ -137,15 +116,7 @@ impl Player {
                 if let Ok(playback_info) = playback_info.as_ref() {
                     if let Ok(_mode) = playback_info.AutoRepeatMode() {
                         if let Ok(value) = _mode.Value() {
-                            match value {
-                                MediaPlaybackAutoRepeatMode::List => {
-                                    break 'rt String::from("List")
-                                }
-                                MediaPlaybackAutoRepeatMode::Track => {
-                                    break 'rt String::from("Track")
-                                }
-                                _ => break 'rt String::from("None"),
-                            }
+                            break 'rt autorepeat_to_string(value)
                         }
                     }
                 }
@@ -202,13 +173,13 @@ impl Player {
         false
     }
 
-    pub fn get_playback_status(&self) -> GlobalSystemMediaTransportControlsSessionPlaybackStatus {
+    pub fn get_playback_status(&self) -> String {
         if let Ok(playback_info) = self.session.GetPlaybackInfo() {
-            if let Ok(playback_status) = playback_info.PlaybackStatus() {
-                return playback_status;
+            if let Ok(status) = playback_info.PlaybackStatus() {
+                return playback_status_to_string(status);
             }
         }
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped
+        String::from("Unknown")
     }
 
     pub async fn next(&self) -> bool {
@@ -241,20 +212,28 @@ impl Player {
         false
     }
 
-    pub async fn set_repeat(&self, value: MediaPlaybackAutoRepeatMode) -> bool {
-        if let Ok(result) = self.session.TryChangeAutoRepeatModeAsync(value) {
+    pub async fn set_repeat(&self, value: String) -> bool {
+        let _val = match value.as_str() {
+            "None" => MediaPlaybackAutoRepeatMode::None,
+            "List" => MediaPlaybackAutoRepeatMode::List,
+            "Track" => MediaPlaybackAutoRepeatMode::Track,
+            _ => MediaPlaybackAutoRepeatMode::None
+        };
+        if let Ok(result) = self.session.TryChangeAutoRepeatModeAsync(_val) {
             return result.await.unwrap_or(false);
         }
         false
     }
 
-    pub fn get_repeat(&self) -> Option<MediaPlaybackAutoRepeatMode> {
+    pub fn get_repeat(&self) -> String {
         if let Ok(playback_info) = self.session.GetPlaybackInfo() {
             if let Ok(repeat_mode) = playback_info.AutoRepeatMode() {
-                return repeat_mode.Value().ok();
+                if let Ok(value) = repeat_mode.Value() {
+                    return autorepeat_to_string(value);
+                }
             }
         }
-        None
+        String::from("None")
     }
 
     pub async fn seek(&self, offset_s: f64) -> bool {
