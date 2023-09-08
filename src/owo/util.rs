@@ -14,7 +14,7 @@ use windows::{
         },
         MediaPlaybackAutoRepeatMode,
     },
-    Storage::Streams::{self, DataReader},
+    Storage::Streams::{self, DataReader, IRandomAccessStreamReference},
     System,
 };
 
@@ -269,54 +269,57 @@ pub fn get_session_metadata(
                 }
 
                 if let Ok(thumbnail) = info.Thumbnail() {
-                    if let Ok(_async) = thumbnail.OpenReadAsync() {
-                        if let Ok(stream) = _async.get() {
-                            let size = stream.Size().unwrap_or(0);
-                            let content_type = stream.ContentType().unwrap_or_default();
-
-                            // TODO: probably remove the unwrap hell from here
-                            if stream.CanRead().unwrap_or(false) && size > 0 {
-                                let result_buffer = 'rt: {
-                                    if let Ok(buffer) = Streams::Buffer::Create(size as u32) {
-                                        if let Ok(_async) = stream.ReadAsync(
-                                            &buffer,
-                                            size as u32,
-                                            Streams::InputStreamOptions::None,
-                                        ) {
-                                            if let Ok(result_buffer) = _async.get() {
-                                                break 'rt Some(result_buffer);
-                                            }
-                                        }
-                                    }
-                                    None
-                                };
-
-                                if let Some(result_buffer) = result_buffer {
-                                    let size = result_buffer.Length().unwrap_or(0);
-
-                                    if let Ok(data_reader) = DataReader::FromBuffer(&result_buffer)
-                                    {
-                                        let mut data: Vec<u8> = vec![0; size as usize];
-                                        data_reader.ReadBytes(data.as_mut()).unwrap_or_default();
-
-                                        if let Ok(_async) = stream.FlushAsync() {
-                                            _async.get().unwrap_or_default();
-                                        }
-
-                                        stream.Close().unwrap_or_default();
-
-                                        metadata.art_data = Some(ArtData {
-                                            data,
-                                            mimetype: content_type.to_string(),
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    metadata.art_data = get_cover_art_data(thumbnail);
                 }
 
                 return Some(metadata);
+            }
+        }
+    }
+    None
+}
+
+fn get_cover_art_data(thumbnail: IRandomAccessStreamReference) -> Option<ArtData> {
+    if let Ok(_async) = thumbnail.OpenReadAsync() {
+        if let Ok(stream) = _async.get() {
+            let size = stream.Size().unwrap_or(0);
+            let content_type = stream.ContentType().unwrap_or_default();
+
+            if stream.CanRead().unwrap_or(false) && size > 0 {
+                let result_buffer = 'rt: {
+                    if let Ok(buffer) = Streams::Buffer::Create(size as u32) {
+                        if let Ok(_async) = stream.ReadAsync(
+                            &buffer,
+                            size as u32,
+                            Streams::InputStreamOptions::None,
+                        ) {
+                            if let Ok(result_buffer) = _async.get() {
+                                break 'rt Some(result_buffer);
+                            }
+                        }
+                    }
+                    None
+                };
+
+                if let Some(result_buffer) = result_buffer {
+                    let size = result_buffer.Length().unwrap_or(0);
+
+                    if let Ok(data_reader) = DataReader::FromBuffer(&result_buffer) {
+                        let mut data: Vec<u8> = vec![0; size as usize];
+                        data_reader.ReadBytes(data.as_mut()).unwrap_or_default();
+
+                        if let Ok(_async) = stream.FlushAsync() {
+                            _async.get().unwrap_or_default();
+                        }
+
+                        stream.Close().unwrap_or_default();
+
+                        return Some(ArtData {
+                            data,
+                            mimetype: content_type.to_string(),
+                        });
+                    }
+                }
             }
         }
     }
