@@ -181,29 +181,29 @@ pub fn get_session_capabilities(
 ) -> Capabilities {
     if let Ok(playback_info) = session.GetPlaybackInfo() {
         if let Ok(controls) = playback_info.Controls() {
-            let mut capabilities = Capabilities {
-                can_play_pause: controls.IsPlayEnabled().unwrap_or(false)
-                    || controls.IsPauseEnabled().unwrap_or(false),
-                can_go_next: controls.IsNextEnabled().unwrap_or(false),
-                can_go_previous: controls.IsPreviousEnabled().unwrap_or(false),
-                can_seek: {
-                    let is_pp_enabled = controls.IsPlaybackPositionEnabled().unwrap_or(false);
-                    let is_endtime = 'rt: {
-                        if let Ok(p) = session.GetTimelineProperties() {
-                            break 'rt p.EndTime().unwrap_or_default().Duration != 0;
-                        }
-                        false
-                    };
-                    is_pp_enabled && is_endtime
-                },
-                can_control: false,
+            let can_play_pause = controls.IsPlayEnabled().unwrap_or(false)
+                || controls.IsPauseEnabled().unwrap_or(false);
+            let can_go_next = controls.IsNextEnabled().unwrap_or(false);
+            let can_go_previous = controls.IsPreviousEnabled().unwrap_or(false);
+            let can_seek = {
+                let is_pp_enabled = controls.IsPlaybackPositionEnabled().unwrap_or(false);
+                let is_endtime = 'rt: {
+                    if let Ok(p) = session.GetTimelineProperties() {
+                        break 'rt p.EndTime().unwrap_or_default().Duration != 0;
+                    }
+                    false
+                };
+                is_pp_enabled && is_endtime
             };
-            capabilities.can_control = capabilities.can_play_pause
-                || capabilities.can_go_next
-                || capabilities.can_go_previous
-                || capabilities.can_seek;
+            let can_control = can_play_pause || can_go_next || can_go_previous || can_seek;
 
-            return capabilities;
+            return Capabilities {
+                can_control,
+                can_play_pause,
+                can_go_next,
+                can_go_previous,
+                can_seek,
+            };
         }
     }
     Capabilities {
