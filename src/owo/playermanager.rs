@@ -201,14 +201,14 @@ impl PlayerManager {
             if self.active_player_key.is_none()
                 && self
                     .players
-                    .contains_key(&preferred.clone().unwrap_or(String::from("")))
+                    .contains_key(&preferred.clone().unwrap_or(String::new()))
             {
                 self.active_player_key = preferred.clone();
             }
 
             if self.active_player_key.is_none()
                 && self.players.contains_key::<String>(
-                    &self.system_player_key.clone().unwrap_or(String::from("")),
+                    &self.system_player_key.clone().unwrap_or(String::new()),
                 )
             {
                 self.active_player_key = preferred.clone();
