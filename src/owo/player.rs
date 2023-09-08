@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 use windows::{
     Foundation::{EventRegistrationToken, TypedEventHandler},
@@ -32,25 +32,14 @@ pub struct Player {
     session: GlobalSystemMediaTransportControlsSession,
     aumid: String,
 
-    event_tokens: Option<EventToken>,
+    tx: UnboundedSender<PlayerEvent>,
+    rx: UnboundedReceiver<PlayerEvent>,
+
+    event_tokens: EventToken,
 }
 
 impl Player {
     pub fn new(session: GlobalSystemMediaTransportControlsSession, aumid: String) -> Self {
-        Player {
-            session,
-            aumid,
-
-            event_tokens: None,
-        }
-    }
-
-    pub fn set_events(&mut self) -> UnboundedReceiver<PlayerEvent> {
-        if let Some(_tokens) = &self.event_tokens {
-            // deregister to register again, invalidates stuff
-            self.unset_events();
-        }
-
         let (tx, rx) = unbounded_channel();
 
         let playback_info_changed_handler = TypedEventHandler::new({
@@ -77,49 +66,35 @@ impl Player {
             }
         });
 
-        let playback_info_changed_token = self
-            .session
+        let playback_info_changed_token = session
             .PlaybackInfoChanged(&playback_info_changed_handler)
             .unwrap();
-        let media_properties_changed_token = self
-            .session
+        let media_properties_changed_token = session
             .MediaPropertiesChanged(&media_properties_changed_handler)
             .unwrap();
-        let timeline_properties_changed_token = self
-            .session
+        let timeline_properties_changed_token = session
             .TimelinePropertiesChanged(&timeline_properties_changed_handler)
             .unwrap();
 
-        self.event_tokens = Some(EventToken {
+        let event_tokens = EventToken {
             playback_info_changed_token,
             media_properties_changed_token,
             timeline_properties_changed_token,
-        });
+        };
 
-        rx
+        Player {
+            session,
+            aumid,
+
+            tx,
+            rx,
+
+            event_tokens,
+        }
     }
 
-    pub fn unset_events(&mut self) {
-        let _ = self.session.RemoveMediaPropertiesChanged(
-            self.event_tokens
-                .as_mut()
-                .unwrap()
-                .media_properties_changed_token,
-        );
-        let _ = self.session.RemovePlaybackInfoChanged(
-            self.event_tokens
-                .as_mut()
-                .unwrap()
-                .playback_info_changed_token,
-        );
-        let _ = self.session.RemoveTimelinePropertiesChanged(
-            self.event_tokens
-                .as_mut()
-                .unwrap()
-                .timeline_properties_changed_token,
-        );
-
-        self.event_tokens = None;
+    pub async fn poll_next_event(&mut self) -> Option<PlayerEvent> {
+        self.rx.recv().await
     }
 
     pub async fn get_status(&self) -> Status {
@@ -326,6 +301,14 @@ impl Player {
 
 impl Drop for Player {
     fn drop(&mut self) {
-        self.unset_events();
+        let _ = self
+            .session
+            .RemoveMediaPropertiesChanged(self.event_tokens.media_properties_changed_token);
+        let _ = self
+            .session
+            .RemovePlaybackInfoChanged(self.event_tokens.playback_info_changed_token);
+        let _ = self
+            .session
+            .RemoveTimelinePropertiesChanged(self.event_tokens.timeline_properties_changed_token);
     }
 }

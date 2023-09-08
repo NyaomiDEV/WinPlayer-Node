@@ -32,15 +32,48 @@ pub struct PlayerManager {
     system_player_key: Option<String>,
     players: HashMap<String, Arc<Mutex<Player>>>,
 
-    tx: Option<UnboundedSender<ManagerEvent>>,
+    tx: UnboundedSender<ManagerEvent>,
+    rx: UnboundedReceiver<ManagerEvent>,
 
-    event_tokens: Option<EventToken>,
+    event_tokens: EventToken,
 }
 
 impl PlayerManager {
     pub async fn new() -> Option<Self> {
         if let Ok(_binding) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
             if let Ok(session_manager) = _binding.await {
+                let (tx, rx) = unbounded_channel();
+
+                let sessions_changed_handler = TypedEventHandler::new({
+                    let tx = tx.clone();
+                    move |_, _| {
+                        let _ = tx.send(ManagerEvent::SessionsChanged);
+                        Ok(())
+                    }
+                });
+
+                let current_session_changed_handler = TypedEventHandler::new({
+                    let tx = tx.clone();
+                    move |_, _| {
+                        let _ = tx.send(ManagerEvent::SystemSessionChanged);
+                        Ok(())
+                    }
+                });
+
+                let sessions_changed_token = session_manager
+                    .SessionsChanged(&sessions_changed_handler)
+                    .unwrap();
+                let current_session_changed_token = session_manager
+                    .CurrentSessionChanged(&current_session_changed_handler)
+                    .unwrap();
+
+                let event_tokens = EventToken {
+                    sessions_changed_token,
+                    current_session_changed_token,
+                };
+
+                let _ = tx.send(ManagerEvent::SessionsChanged);
+
                 return Some(PlayerManager {
                     session_manager,
 
@@ -48,73 +81,18 @@ impl PlayerManager {
                     active_player_key: None,
                     system_player_key: None,
 
-                    tx: None,
+                    tx,
+                    rx,
 
-                    event_tokens: None,
+                    event_tokens,
                 });
             }
         }
         None
     }
 
-    pub fn set_events(&mut self) -> UnboundedReceiver<ManagerEvent> {
-        if let Some(_tokens) = &self.event_tokens {
-            // deregister to register again, invalidates stuff
-            self.unset_events();
-        }
-
-        let (tx, rx) = unbounded_channel();
-
-        let sessions_changed_handler = TypedEventHandler::new({
-            let tx = tx.clone();
-            move |_, _| {
-                let _ = tx.send(ManagerEvent::SessionsChanged);
-                Ok(())
-            }
-        });
-
-        let current_session_changed_handler = TypedEventHandler::new({
-            let tx = tx.clone();
-            move |_, _| {
-                let _ = tx.send(ManagerEvent::SystemSessionChanged);
-                Ok(())
-            }
-        });
-
-        let sessions_changed_token = self
-            .session_manager
-            .SessionsChanged(&sessions_changed_handler)
-            .unwrap();
-        let current_session_changed_token = self
-            .session_manager
-            .CurrentSessionChanged(&current_session_changed_handler)
-            .unwrap();
-
-        self.event_tokens = Some(EventToken {
-            sessions_changed_token,
-            current_session_changed_token,
-        });
-
-        let _ = tx.send(ManagerEvent::SessionsChanged);
-
-        self.tx = Some(tx);
-
-        rx
-    }
-
-    pub fn unset_events(&mut self) {
-        let _ = self
-            .session_manager
-            .RemoveSessionsChanged(self.event_tokens.as_mut().unwrap().sessions_changed_token);
-        let _ = self.session_manager.RemoveCurrentSessionChanged(
-            self.event_tokens
-                .as_mut()
-                .unwrap()
-                .current_session_changed_token,
-        );
-
-        self.tx = None;
-        self.event_tokens = None;
+    pub async fn poll_next_event(&mut self) -> Option<ManagerEvent> {
+        self.rx.recv().await
     }
 
     pub fn get_active_session(&self) -> Option<Arc<Mutex<Player>>> {
@@ -248,9 +226,7 @@ impl PlayerManager {
             }
 
             if !old.eq(&self.active_player_key) {
-                if let Some(tx) = &self.tx {
-                    let _ = tx.send(ManagerEvent::ActiveSessionChanged);
-                }
+                let _ = self.tx.send(ManagerEvent::ActiveSessionChanged);
             }
         }
     }
@@ -258,6 +234,11 @@ impl PlayerManager {
 
 impl Drop for PlayerManager {
     fn drop(&mut self) {
-        self.unset_events();
+        let _ = self
+            .session_manager
+            .RemoveSessionsChanged(self.event_tokens.sessions_changed_token);
+        let _ = self.session_manager.RemoveCurrentSessionChanged(
+            self.event_tokens.current_session_changed_token,
+        );
     }
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use napi::bindgen_prelude::External;
 use napi_derive::napi;
-use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
+use tokio::sync::Mutex;
 use windows::Media::{
     Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPlaybackAutoRepeatMode,
 };
@@ -14,69 +14,61 @@ use crate::{
 
 #[napi(js_name = "Player")]
 pub struct JsPlayer {
-    internal: External<JsPlayerInternal>,
-}
-
-pub struct JsPlayerInternal {
-    player: Arc<Mutex<Player>>,
-    rx: UnboundedReceiver<PlayerEvent>,
+    player: External<Arc<Mutex<Player>>>,
 }
 
 #[napi]
 impl JsPlayer {
     #[napi(constructor)]
-    pub fn new(internal: External<JsPlayerInternal>) -> Self {
-        JsPlayer { internal }
-    }
-
-    pub async fn wrap_player(player: Arc<Mutex<Player>>) -> Self {
-        let rx = player.lock().await.set_events();
-        let internal = JsPlayerInternal { player, rx };
-        JsPlayer::new(External::new(internal))
+    pub fn new(player: External<Arc<Mutex<Player>>>) -> Self {
+        JsPlayer { player }
     }
 
     #[napi]
     pub async unsafe fn poll_next_event(&mut self) -> String {
-        match self.internal.rx.recv().await.unwrap() {
-            PlayerEvent::PlaybackInfoChanged => String::from("PlaybackInfoChanged"),
-            PlayerEvent::MediaPropertiesChanged => String::from("MediaPropertiesChanged"),
-            PlayerEvent::TimelinePropertiesChanged => String::from("TimelinePropertiesChanged"),
+        match self.player.lock().await.poll_next_event().await {
+            Some(PlayerEvent::PlaybackInfoChanged) => String::from("PlaybackInfoChanged"),
+            Some(PlayerEvent::MediaPropertiesChanged) => String::from("MediaPropertiesChanged"),
+            Some(PlayerEvent::TimelinePropertiesChanged) => {
+                String::from("TimelinePropertiesChanged")
+            }
+            None => String::from("None"),
         }
     }
 
     #[napi(ts_return_type = "Promise<Status>")]
     pub async fn get_status(&self) -> JsStatus {
-        JsStatus::from(self.internal.player.lock().await.get_status().await)
+        JsStatus::from(self.player.lock().await.get_status().await)
     }
 
     #[napi]
     pub async fn get_aumid(&self) -> String {
-        self.internal.player.lock().await.get_aumid()
+        self.player.lock().await.get_aumid()
     }
 
     #[napi]
     pub async fn play(&self) -> bool {
-        self.internal.player.lock().await.play().await
+        self.player.lock().await.play().await
     }
 
     #[napi]
     pub async fn pause(&self) -> bool {
-        self.internal.player.lock().await.pause().await
+        self.player.lock().await.pause().await
     }
 
     #[napi]
     pub async fn play_pause(&self) -> bool {
-        self.internal.player.lock().await.play_pause().await
+        self.player.lock().await.play_pause().await
     }
 
     #[napi]
     pub async fn stop(&self) -> bool {
-        self.internal.player.lock().await.stop().await
+        self.player.lock().await.stop().await
     }
 
     #[napi]
     pub async fn get_playback_status(&self) -> String {
-        match self.internal.player.lock().await.get_playback_status() {
+        match self.player.lock().await.get_playback_status() {
             GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
                 String::from("Playing")
             }
@@ -101,22 +93,22 @@ impl JsPlayer {
 
     #[napi]
     pub async fn next(&self) -> bool {
-        self.internal.player.lock().await.next().await
+        self.player.lock().await.next().await
     }
 
     #[napi]
     pub async fn previous(&self) -> bool {
-        self.internal.player.lock().await.previous().await
+        self.player.lock().await.previous().await
     }
 
     #[napi]
     pub async fn set_shuffle(&self, value: bool) -> bool {
-        self.internal.player.lock().await.set_shuffle(value).await
+        self.player.lock().await.set_shuffle(value).await
     }
 
     #[napi]
     pub async fn get_shuffle(&self) -> bool {
-        self.internal.player.lock().await.get_shuffle()
+        self.player.lock().await.get_shuffle()
     }
 
     #[napi]
@@ -127,12 +119,12 @@ impl JsPlayer {
             "Track" => MediaPlaybackAutoRepeatMode::Track,
             _ => MediaPlaybackAutoRepeatMode::None,
         };
-        self.internal.player.lock().await.set_repeat(_value).await
+        self.player.lock().await.set_repeat(_value).await
     }
 
     #[napi]
     pub async fn get_repeat(&self) -> Option<String> {
-        if let Some(repeat_mode) = self.internal.player.lock().await.get_repeat() {
+        if let Some(repeat_mode) = self.player.lock().await.get_repeat() {
             return Some(match repeat_mode {
                 MediaPlaybackAutoRepeatMode::None => String::from("None"),
                 MediaPlaybackAutoRepeatMode::List => String::from("List"),
@@ -145,33 +137,22 @@ impl JsPlayer {
 
     #[napi]
     pub async fn seek(&self, offset_s: f64) -> bool {
-        self.internal.player.lock().await.seek(offset_s).await
+        self.player.lock().await.seek(offset_s).await
     }
 
     #[napi]
     pub async fn seek_percentage(&self, percentage: f64) -> bool {
-        self.internal
-            .player
-            .lock()
-            .await
-            .seek_percentage(percentage)
-            .await
+        self.player.lock().await.seek_percentage(percentage).await
     }
 
     #[napi]
     pub async fn set_position(&self, position_s: f64) -> bool {
-        self.internal
-            .player
-            .lock()
-            .await
-            .set_position(position_s)
-            .await
+        self.player.lock().await.set_position(position_s).await
     }
 
     #[napi(ts_return_type = "Promise<Position | null>")]
     pub async fn get_position(&self, wants_current_position: bool) -> Option<JsPosition> {
         if let Some(position) = self
-            .internal
             .player
             .lock()
             .await
