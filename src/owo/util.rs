@@ -74,7 +74,7 @@ pub fn compute_position(
                     last_updated_time.UniversalTime,
                 );
             }
-            Utc.timestamp_millis_opt(timestamp).unwrap()
+            Utc.timestamp_millis_opt(timestamp).single()?
         };
 
         let end_time: f64 = 'rt2: {
@@ -248,9 +248,9 @@ pub fn get_session_metadata(
                 let id = 'rt: {
                     let id = format!(
                         "{}{}{}{}",
-                        album_artist.clone().unwrap_or(String::new()),
+                        album_artist.clone().unwrap_or_default(),
                         artist,
-                        album.clone().unwrap_or(String::new()),
+                        album.clone().unwrap_or_default(),
                         title
                     );
                     if !id.is_empty() {
@@ -327,10 +327,10 @@ fn get_cover_art_data(thumbnail: IRandomAccessStreamReference) -> Option<ArtData
                         data_reader.ReadBytes(data.as_mut()).unwrap_or_default();
 
                         if let Ok(_async) = stream.FlushAsync() {
-                            _async.get().unwrap_or_default();
+                            let _ = _async.get();
                         }
 
-                        stream.Close().unwrap_or_default();
+                        let _ = stream.Close();
 
                         return Some(ArtData {
                             data,
