@@ -29,27 +29,13 @@ fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i
 }
 
 pub fn autorepeat_to_string(autorepeat: MediaPlaybackAutoRepeatMode) -> String {
-    match autorepeat {
-        MediaPlaybackAutoRepeatMode::List => String::from("List"),
-        MediaPlaybackAutoRepeatMode::Track => String::from("Track"),
-        _ => String::from("None"),
-    }
+    format!("{:?}", autorepeat)
 }
 
 pub fn playback_status_to_string(
     status: GlobalSystemMediaTransportControlsSessionPlaybackStatus,
 ) -> String {
-    match status {
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => String::from("Playing"),
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused => String::from("Paused"),
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped => String::from("Stopped"),
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Changing => {
-            String::from("Changing")
-        }
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed => String::from("Closed"),
-        GlobalSystemMediaTransportControlsSessionPlaybackStatus::Opened => String::from("Opened"),
-        _ => String::from("Unknown"),
-    }
+    format!("{:?}", status)
 }
 
 pub fn compute_position(
@@ -134,19 +120,14 @@ async fn get_session_player_name_for_user(aumid: &String) -> Option<String> {
             .DisplayInfo()
             .ok()?
             .DisplayName()
-            .ok()?;
+            .ok()?
+            .to_string();
 
-    if player_name.to_string().eq(aumid) && player_name.to_string().ends_with(".exe") {
-        return Some(
-            player_name
-                .to_string()
-                .strip_suffix(".exe")
-                .unwrap_or_default()
-                .to_string(),
-        );
+    if player_name.eq(aumid) {
+        return Some(player_name.trim_end_matches(".exe").to_string());
     }
 
-    Some(player_name.to_string())
+    Some(player_name)
 }
 
 async fn get_session_player_name_global(aumid: &String) -> Option<String> {
@@ -306,11 +287,9 @@ fn get_cover_art_data(thumbnail: IRandomAccessStreamReference) -> Option<ArtData
             if stream.CanRead().unwrap_or(false) && size > 0 {
                 let result_buffer = 'rt: {
                     if let Ok(buffer) = Streams::Buffer::Create(size as u32) {
-                        if let Ok(_async) = stream.ReadAsync(
-                            &buffer,
-                            size as u32,
-                            Streams::InputStreamOptions::None,
-                        ) {
+                        if let Ok(_async) =
+                            stream.ReadAsync(&buffer, size as u32, Default::default())
+                        {
                             if let Ok(result_buffer) = _async.get() {
                                 break 'rt Some(result_buffer);
                             }
@@ -323,7 +302,7 @@ fn get_cover_art_data(thumbnail: IRandomAccessStreamReference) -> Option<ArtData
                     let size = result_buffer.Length().unwrap_or(0);
 
                     if let Ok(data_reader) = DataReader::FromBuffer(&result_buffer) {
-                        let mut data: Vec<u8> = vec![0; size as usize];
+                        let mut data = vec![0; size as usize];
                         data_reader.ReadBytes(data.as_mut()).unwrap_or_default();
 
                         if let Ok(_async) = stream.FlushAsync() {
