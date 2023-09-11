@@ -21,11 +21,12 @@ use windows::{
 use crate::owo::types::{ArtData, Capabilities, Metadata, Position};
 
 // I don't want to deal with libraries
-fn shitty_windows_epoch_to_actually_usable_unix_timestamp(shitty_time: i64) -> i64 {
+fn shitty_windows_epoch_to_utc(shitty_time: i64) -> Option<DateTime<Utc>> {
     // 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC)
     const TICKS_PER_MILLISECOND: i64 = 10000;
     const UNIX_TIMESTAMP_DIFFERENCE: i64 = 0x019DB1DED53E8000;
-    (shitty_time - UNIX_TIMESTAMP_DIFFERENCE) / TICKS_PER_MILLISECOND
+    let unix_ts = (shitty_time - UNIX_TIMESTAMP_DIFFERENCE) / TICKS_PER_MILLISECOND;
+    Utc.timestamp_millis_opt(unix_ts).single()
 }
 
 pub fn autorepeat_to_string(autorepeat: MediaPlaybackAutoRepeatMode) -> String {
@@ -54,13 +55,11 @@ pub fn compute_position(
         };
 
         let mut when: DateTime<Utc> = {
-            let mut timestamp = 0;
             if let Ok(last_updated_time) = timeline_properties.LastUpdatedTime() {
-                timestamp = shitty_windows_epoch_to_actually_usable_unix_timestamp(
-                    last_updated_time.UniversalTime,
-                );
+                shitty_windows_epoch_to_utc(last_updated_time.UniversalTime)?
+            } else {
+                Default::default()
             }
-            Utc.timestamp_millis_opt(timestamp).single()?
         };
 
         let end_time: f64 = 'rt2: {
