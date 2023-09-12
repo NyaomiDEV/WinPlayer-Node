@@ -107,7 +107,7 @@ impl Player {
             status: 'rt: {
                 if let Ok(playback_info) = playback_info.as_ref() {
                     if let Ok(status) = playback_info.PlaybackStatus() {
-                        break 'rt playback_status_to_string(status)
+                        break 'rt playback_status_to_string(status);
                     }
                 }
                 String::from("Unknown")
@@ -116,7 +116,7 @@ impl Player {
                 if let Ok(playback_info) = playback_info.as_ref() {
                     if let Ok(_mode) = playback_info.AutoRepeatMode() {
                         if let Ok(value) = _mode.Value() {
-                            break 'rt autorepeat_to_string(value)
+                            break 'rt autorepeat_to_string(value);
                         }
                     }
                 }
@@ -217,7 +217,7 @@ impl Player {
             "None" => MediaPlaybackAutoRepeatMode::None,
             "List" => MediaPlaybackAutoRepeatMode::List,
             "Track" => MediaPlaybackAutoRepeatMode::Track,
-            _ => MediaPlaybackAutoRepeatMode::None
+            _ => MediaPlaybackAutoRepeatMode::None,
         };
         if let Ok(result) = self.session.TryChangeAutoRepeatModeAsync(_val) {
             return result.await.unwrap_or(false);

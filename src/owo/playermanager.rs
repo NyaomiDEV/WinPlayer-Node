@@ -170,55 +170,38 @@ impl PlayerManager {
 
     fn update_active_player(&mut self, preferred: Option<String>) {
         if let Ok(sessions) = self.session_manager.GetSessions() {
-            let old = self.active_player_key.clone();
-            self.active_player_key = None;
+            let aumids_with_info = sessions
+                .into_iter()
+                .filter_map(|s| Some((s.SourceAppUserModelId().ok()?.to_string(), s.clone())))
+                .filter(|(aumid, _)| !aumid.is_empty())
+                .filter_map(|(a, s)| Some((a, s.GetPlaybackInfo().ok()?.PlaybackStatus().ok()?)));
 
-            // if checks => check if active player key is STILL none AND condition to apply
-            if self.active_player_key.is_none()
-                && self
-                    .players
-                    .contains_key(&preferred.clone().unwrap_or(String::new()))
-            {
-                self.active_player_key = preferred.clone();
-            }
-
-            if self
-                .players
-                .contains_key::<String>(&self.system_player_key.clone().unwrap_or(String::new()))
-            {
-                self.active_player_key = self.system_player_key.clone();
-            }
-
-            if self.active_player_key.is_none() {
-                for session in sessions {
-                    if let Ok(aumid) = session.SourceAppUserModelId() {
-                        let _aumid = aumid.to_string();
-
-                        if _aumid.is_empty() {
-                            continue;
-                        }
-
-                        if !self.players.contains_key(&_aumid) {
-                            continue;
-                        }
-
-                        self.active_player_key = Some(_aumid.to_string());
-
-                        if let Ok(_info) = session.GetPlaybackInfo() {
-                            if let Ok(_status) = _info.PlaybackStatus() {
-                                if _status
-                                == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
-                                {
-                                    break;
-                                }
-                            }
-                        }
+            let mut playing = vec![];
+            let mut others = vec![];
+            for (aumid, playback_info) in aumids_with_info {
+                match playback_info {
+                    GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing => {
+                        playing.push(Some(aumid))
                     }
+                    _ => others.push(Some(aumid)),
                 }
             }
 
+            // Take the first from this order:
+            // Preferred
+            // System session
+            // Playing
+            // Others
+            let new = [preferred, self.system_player_key.clone()]
+                .into_iter()
+                .chain(playing)
+                .chain(others)
+                .flatten()
+                .find(|aumid| self.players.contains_key(aumid));
+
             // we need to arrive here so we cannot return early
-            if !old.eq(&self.active_player_key) {
+            if self.active_player_key != new {
+                self.active_player_key = new;
                 let _ = self.tx.send(ManagerEvent::ActiveSessionChanged);
             }
         }
