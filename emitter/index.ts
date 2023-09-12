@@ -27,15 +27,17 @@ export class WinPlayer extends EventEmitter {
 							this.player = player;
 							_playerEvents();
 						}
+						this.emit(evt, await this.player?.getAumid());
 						break;
 					case "SystemSessionChanged":
 						this.playerManager.updateSystemSession();
+						this.emit(evt, await this.playerManager.getSystemSession()?.getAumid());
 						break;
 					case "SessionsChanged":
 						this.playerManager.updateSessions(this.denylist);
+						this.emit(evt, this.playerManager.getSessionsKeys());
 						break;
 				}
-				this.emit(evt);
 			}
 		}
 
@@ -71,36 +73,44 @@ export class WinPlayer extends EventEmitter {
 		return this.player?.getStatus();
 	}
 
-	async Play() {
+	async play() {
 		return await this.player?.play();
 	}
 
-	async Pause() {
+	async pause() {
 		return await this.player?.pause();
 	}
 
-	async PlayPause() {
+	async playPause() {
 		return await this.player?.playPause();
 	}
 
-	async Stop() {
+	async stop() {
 		return await this.player?.stop();
 	}
 
-	async Next() {
+	async next() {
 		return await this.player?.next();
 	}
 
-	async Previous() {
+	async previous() {
 		return await this.player?.previous();
 	}
 
-	async Shuffle() {
+	async shuffle() {
 		const shuffle = await this.player?.getShuffle();
 		return this.player?.setShuffle(!shuffle);
 	}
 
-	async Repeat() {
+	async getShuffle() {
+		return await this.player?.getShuffle();
+	}
+
+	async setShuffle(value: boolean) {
+		return await this.player?.setShuffle(value);
+	}
+
+	async repeat() {
 		const repeat = await this.player?.getRepeat();
 		switch (repeat) {
 			case "List":
@@ -113,19 +123,27 @@ export class WinPlayer extends EventEmitter {
 		}
 	}
 
-	async Seek(offset: number) {
+	async getRepeat() {
+		return await this.player?.getRepeat();
+	}
+
+	async setRepeat(value: string) {
+		return await this.player?.setRepeat(value);
+	}
+
+	async seek(offset: number) {
 		return await this.player?.seek(offset);
 	}
 
-	async SeekPercentage(percentage: number) {
+	async seekPercentage(percentage: number) {
 		return await this.player?.seekPercentage(percentage);
 	}
 
-	async SetPosition(position: number) {
+	async setPosition(position: number) {
 		return await this.player?.setPosition(position);
 	}
 
-	async GetPosition() {
+	async getPosition() {
 		const pos = await this.player?.getPosition(true);
 		if (!pos) {
 			return {

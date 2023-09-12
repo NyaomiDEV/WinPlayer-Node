@@ -24,15 +24,17 @@ class WinPlayer extends events_1.EventEmitter {
                             this.player = player;
                             _playerEvents();
                         }
+                        this.emit(evt, await this.player?.getAumid());
                         break;
                     case "SystemSessionChanged":
                         this.playerManager.updateSystemSession();
+                        this.emit(evt, await this.playerManager.getSystemSession()?.getAumid());
                         break;
                     case "SessionsChanged":
                         this.playerManager.updateSessions(this.denylist);
+                        this.emit(evt, this.playerManager.getSessionsKeys());
                         break;
                 }
-                this.emit(evt);
             }
         };
         const _playerEvents = async () => {
@@ -63,29 +65,35 @@ class WinPlayer extends events_1.EventEmitter {
     async getStatus() {
         return this.player?.getStatus();
     }
-    async Play() {
+    async play() {
         return await this.player?.play();
     }
-    async Pause() {
+    async pause() {
         return await this.player?.pause();
     }
-    async PlayPause() {
+    async playPause() {
         return await this.player?.playPause();
     }
-    async Stop() {
+    async stop() {
         return await this.player?.stop();
     }
-    async Next() {
+    async next() {
         return await this.player?.next();
     }
-    async Previous() {
+    async previous() {
         return await this.player?.previous();
     }
-    async Shuffle() {
+    async shuffle() {
         const shuffle = await this.player?.getShuffle();
         return this.player?.setShuffle(!shuffle);
     }
-    async Repeat() {
+    async getShuffle() {
+        return await this.player?.getShuffle();
+    }
+    async setShuffle(value) {
+        return await this.player?.setShuffle(value);
+    }
+    async repeat() {
         const repeat = await this.player?.getRepeat();
         switch (repeat) {
             case "List":
@@ -97,16 +105,22 @@ class WinPlayer extends events_1.EventEmitter {
                 return await this.player?.setRepeat("List");
         }
     }
-    async Seek(offset) {
+    async getRepeat() {
+        return await this.player?.getRepeat();
+    }
+    async setRepeat(value) {
+        return await this.player?.setRepeat(value);
+    }
+    async seek(offset) {
         return await this.player?.seek(offset);
     }
-    async SeekPercentage(percentage) {
+    async seekPercentage(percentage) {
         return await this.player?.seekPercentage(percentage);
     }
-    async SetPosition(position) {
+    async setPosition(position) {
         return await this.player?.setPosition(position);
     }
-    async GetPosition() {
+    async getPosition() {
         const pos = await this.player?.getPosition(true);
         if (!pos) {
             return {
