@@ -173,25 +173,35 @@ impl PlayerManager {
             let old = self.active_player_key.clone();
             self.active_player_key = None;
 
-            for session in sessions {
-                if let Ok(aumid) = session.SourceAppUserModelId() {
-                    let _aumid = aumid.to_string();
+            if self
+                .players
+                .contains_key::<String>(&self.system_player_key.clone().unwrap_or(String::new()))
+            {
+                self.active_player_key = self.system_player_key.clone();
+            }
 
-                    if _aumid.is_empty() {
-                        continue;
-                    }
+            // if checks => check if active player key is STILL none AND condition to apply
+            if self.active_player_key.is_none() {
+                for session in sessions {
+                    if let Ok(aumid) = session.SourceAppUserModelId() {
+                        let _aumid = aumid.to_string();
 
-                    if !self.players.contains_key(&_aumid) {
-                        continue;
-                    }
+                        if _aumid.is_empty() {
+                            continue;
+                        }
 
-                    if let Ok(_info) = session.GetPlaybackInfo() {
-                        if let Ok(_status) = _info.PlaybackStatus() {
-                            if _status
+                        if !self.players.contains_key(&_aumid) {
+                            continue;
+                        }
+
+                        if let Ok(_info) = session.GetPlaybackInfo() {
+                            if let Ok(_status) = _info.PlaybackStatus() {
+                                if _status
                                 == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
                             {
                                 self.active_player_key = Some(_aumid.to_string());
                                 break;
+                            }
                             }
                         }
                     }
@@ -206,14 +216,6 @@ impl PlayerManager {
                 self.active_player_key = preferred.clone();
             }
 
-            if self.active_player_key.is_none()
-                && self.players.contains_key::<String>(
-                    &self.system_player_key.clone().unwrap_or(String::new()),
-                )
-            {
-                self.active_player_key = preferred.clone();
-            }
-
             if self.active_player_key.is_none() && !self.players.is_empty() {
                 self.active_player_key = 'rt: {
                     if let Some(key) = self.players.keys().collect::<Vec<_>>().get(0) {
@@ -223,6 +225,7 @@ impl PlayerManager {
                 }
             }
 
+            // we need to arrive here so we cannot return early
             if !old.eq(&self.active_player_key) {
                 let _ = self.tx.send(ManagerEvent::ActiveSessionChanged);
             }
